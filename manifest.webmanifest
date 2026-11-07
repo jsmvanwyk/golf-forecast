@@ -1,0 +1,16 @@
+{
+  "name": "Weather or Not",
+  "short_name": "WeatherOrNot",
+  "description": "Golf, cricket and event weather: hourly and 15-minute forecasts, lightning and rain maps for any South African course, ground or address",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef2ea",
+  "theme_color": "#2c6a3f",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

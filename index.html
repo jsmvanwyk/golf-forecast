@@ -1,0 +1,1555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Weather or Not</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2c6a3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="WeatherOrNot">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Bowlby+One&family=Patrick+Hand&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a scorecard. Search bar on top, the course "card header" (name, altitude, daylight), a 16-day strip,
+   the round verdict for the chosen tee time, a chart, then the hour / 15-minute scorecard with holes marked. */
+:root{
+  --bg:#eef2ea; --card:#fbfcf8; --ink:#14241a; --muted:#56685c; --line:#cfd8cc;
+  --green:#2c6a3f; --green-soft:#dde9dc; --flag:#c8372d; --sun:#e0a017; --cloud:#9aa7a0; --rain:#2f6fb5;
+  --good:#2e8a3e; --ok:#7f9b22; --fair:#cf8516; --poor:#c43b2e; --hl:#fff4c7; --hlline:#e2c96a;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1712; --card:#16211a; --ink:#e4ece5; --muted:#93a598; --line:#2a3a2f;
+  --green:#6fbf83; --green-soft:#1f3326; --flag:#ef6a5f; --sun:#f2c14e; --cloud:#7d8a83; --rain:#6aa6ea;
+  --good:#5cc06d; --ok:#b4cc4f; --fair:#e7a446; --poor:#ef6a5f; --hl:#2f2b16; --hlline:#7a6a2a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1712; --card:#16211a; --ink:#e4ece5; --muted:#93a598; --line:#2a3a2f;
+  --green:#6fbf83; --green-soft:#1f3326; --flag:#ef6a5f; --sun:#f2c14e; --cloud:#7d8a83; --rain:#6aa6ea;
+  --good:#5cc06d; --ok:#b4cc4f; --fair:#e7a446; --poor:#ef6a5f; --hl:#2f2b16; --hlline:#7a6a2a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.brand{font-family:var(--f-display);font-weight:700;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.brand svg{width:22px;height:26px}
+.searchbox{position:relative;flex:1 1 420px;min-width:0}
+.searchbox input{width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--line);border-radius:10px;background:var(--card)}
+.searchbox input:focus{border-color:var(--green);outline:none}
+.searchbox .mag{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+.results{position:absolute;z-index:50;left:0;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.15);max-height:min(70vh,460px);overflow:auto;padding:6px}
+.results h4{margin:8px 10px 4px;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.res{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;padding:8px 10px;border:0;background:none;border-radius:7px}
+.res:hover,.res.on{background:var(--green-soft)}
+.res b{font-weight:600}
+.res span{color:var(--muted);font-size:.85rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{display:flex;gap:6px;align-items:center;font-size:.85rem;color:var(--muted)}
+.btn{border:1.5px solid var(--line);background:var(--card);padding:7px 12px;border-radius:8px;font-weight:600;font-size:.88rem;text-decoration:none;color:var(--ink);display:inline-block}
+.btn:hover{border-color:var(--green)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.btn.pri{background:var(--green);border-color:var(--green);color:var(--card)}
+.favs{display:flex;flex-wrap:wrap;gap:6px}
+.fav{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 10px;font-size:.85rem}
+.fav:hover{border-color:var(--green)}
+.status{font-size:.85rem;padding:8px 12px;border-radius:8px;background:var(--green-soft)}
+.status.err{background:color-mix(in srgb,var(--poor) 16%,var(--card));color:var(--ink)}
+
+/* header card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.head{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.head h1{font-family:var(--f-display);font-weight:700;text-transform:uppercase;letter-spacing:.02em;font-size:clamp(1.6rem,3.6vw,2.4rem);
+  line-height:1;margin:2px 0 6px;text-wrap:balance}
+.head .sub{color:var(--muted);font-size:.9rem}
+.facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px}
+.fact{display:flex;flex-direction:column}
+.fact .v{font-family:var(--f-num);font-size:.95rem}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:flex-start;border-top:1px solid var(--line);padding-top:12px}
+.ctrl label{display:flex;flex-direction:column;gap:3px}
+.ctrl input,.ctrl select{padding:7px 9px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg)}
+.star{font-size:1.3rem;line-height:1;background:none;border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--muted)}
+.star.on{color:var(--sun);border-color:var(--sun)}
+@media (max-width:760px){.head{grid-template-columns:1fr}.ctrl{justify-content:flex-start}}
+
+/* day strip */
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.day{flex:0 0 108px;scroll-snap-align:start;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.day.on{border-color:var(--green);box-shadow:inset 0 0 0 1.5px var(--green)}
+.day .dn{font-family:var(--f-display);font-weight:600;font-size:1.05rem;text-transform:uppercase;letter-spacing:.03em;display:flex;justify-content:space-between;align-items:center}
+.day .dd{font-size:.78rem;color:var(--muted)}
+.day .row{display:flex;justify-content:space-between;align-items:center}
+.day .tt{font-family:var(--f-num);font-size:.9rem}
+.day .tt small{color:var(--muted)}
+.day .mini{font-family:var(--f-num);font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between}
+.ico{width:30px;height:30px;flex:none}
+.ico.sm{width:24px;height:24px}
+
+/* round verdict */
+.round{padding:16px 18px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
+.scorebig{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;text-align:center;border:4px solid currentColor}
+.scorebig .n{font-family:var(--f-display);font-size:2.4rem;font-weight:700;line-height:1}
+.scorebig .t{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.verdict h2{font-family:var(--f-display);text-transform:uppercase;font-size:1.5rem;margin:0 0 4px;letter-spacing:.02em}
+.verdict ul{margin:6px 0 0;padding-left:18px}
+.verdict li{margin:2px 0}
+.grid4{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 16px;margin-top:12px}
+.grid4 .v{font-family:var(--f-num);font-size:1rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media (max-width:560px){.round{grid-template-columns:1fr}}
+
+/* chart + map */
+.chartbox{padding:12px 14px}
+.chartwrap{position:relative;height:280px}
+#map{height:360px;border-radius:0 0 14px 14px}
+.panelhead{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;gap:10px;flex-wrap:wrap}
+
+/* table */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tab{border:1.5px solid var(--line);background:var(--card);padding:6px 12px;border-radius:99px;font-weight:600;font-size:.88rem}
+.tab.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:880px;font-size:.9rem}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--card);z-index:2}
+td:first-child,th:first-child{text-align:left}
+td.c,th.c{text-align:center}
+td{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tr.inround td{background:var(--hl)}
+tr.inround td:first-child{box-shadow:inset 3px 0 0 var(--flag)}
+tr.night td{color:var(--muted)}
+.holes{font-family:var(--f-display);font-weight:600;font-size:.95rem;color:var(--flag);letter-spacing:.02em}
+.chip{display:inline-block;min-width:38px;padding:2px 6px;border-radius:6px;font-weight:600;text-align:center;color:#fff}
+.s-good{background:var(--good)} .s-ok{background:var(--ok)} .s-fair{background:var(--fair)} .s-poor{background:var(--poor)}
+.c-good{color:var(--good)} .c-ok{color:var(--ok)} .c-fair{color:var(--fair)} .c-poor{color:var(--poor)}
+.arrow{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px}
+.warnt{color:var(--poor);font-weight:600}
+.note{font-size:.82rem;color:var(--muted);padding:8px 14px 12px}
+footer{font-size:.8rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
+footer a{color:inherit}
+.ic-sun{fill:var(--sun)} .ic-cloud{fill:var(--cloud)} .ic-rain{stroke:var(--rain);stroke-width:2;stroke-linecap:round;fill:none}
+.ic-bolt{fill:var(--sun)} .ic-moon{fill:var(--muted)} .ic-fog{stroke:var(--cloud);stroke-width:2;stroke-linecap:round}
+.ninehead{font-family:var(--f-display);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:1rem;margin:8px 0 4px;color:var(--flag)}
+.holes9{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
+.ht{border:1px solid var(--line);border-radius:8px;padding:5px 4px;text-align:center;background:var(--card);display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.ht.alt{background:var(--green-soft)}
+.ht .hn{display:flex;flex-direction:column;line-height:1}
+.ht .hn b{font-family:var(--f-display);font-size:1.3rem}
+.ht .hn span,.ht .hr,.ht .hw small{font-family:var(--f-num);font-size:.7rem;color:var(--muted)}
+.ht .hv{font-family:var(--f-num);font-weight:500}
+.ht .hw{font-family:var(--f-num);font-size:.78rem;white-space:nowrap}
+.ht .hl{font-size:.65rem;color:#fff;border-radius:4px;padding:0 3px;font-weight:700}
+@media (max-width:760px){.holes9{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:420px){.holes9{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.trip{display:flex;flex-direction:column;gap:6px;padding:0 14px 10px}
+.tripi{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.9rem}
+.tripi button{border:0;background:none;color:var(--muted);font-size:1rem}
+.shout{display:flex;flex-wrap:wrap;gap:12px;padding:0 14px 14px}
+.shout img{width:min(100%,380px);height:auto;border-radius:10px;border:1px solid var(--line)}
+.shctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.shctl input[type=text],.shctl select{padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg)}
+@media (max-width:640px){
+  table{min-width:700px;font-size:.84rem} th,td{padding:5px 6px}
+  td:first-child,th:first-child{position:sticky;left:0;z-index:1;background:var(--card)}
+  tr.inround td:first-child{background:var(--hl)}
+  #windy{height:360px!important} .chartwrap{height:240px} #map{height:300px}
+  .brand{font-size:1.25rem} .head{padding:14px} .round{padding:14px}
+  .scorebig{width:80px;height:80px} .scorebig .n{font-size:2rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 22 26" aria-hidden="true"><line x1="4" y1="2" x2="4" y2="25" stroke="currentColor" stroke-width="2"/><path d="M5 3 L19 7.5 L5 12 Z" fill="var(--flag)"/><ellipse cx="10" cy="24.5" rx="8" ry="1.5" fill="var(--green)"/></svg>
+      Weather or Not
+    </div>
+    <div class="searchbox">
+      <svg class="mag" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="Golf course, address, town, or -26.05, 28.10" aria-label="Search for a golf course or address">
+      <div id="results" class="results" hidden></div>
+    </div>
+    <div class="tools">
+      <label class="chk"><input id="saOnly" type="checkbox" checked> SA addresses only</label>
+      <button class="btn" id="mapBtn">Map</button>
+    </div>
+  </div>
+
+  <div class="favs" id="favs"></div>
+  <div id="status" class="status" hidden></div>
+
+  <section class="card" id="mapCard" hidden>
+    <div class="panelhead"><span class="label">Click a course pin, or anywhere on the map to forecast that spot</span><span class="muted" id="mapCount"></span></div>
+    <div id="map"></div>
+  </section>
+
+  <section class="card head" id="head">
+    <div style="min-width:0">
+      <div class="label" id="locKind">Golf course</div>
+      <h1 id="locName">Loading…</h1>
+      <div class="sub" id="locSub"></div>
+      <div class="facts" id="facts"></div>
+    </div>
+    <div class="ctrl">
+      <label><span class="label">Activity</span>
+        <select id="mode"><option value="golf">⛳ Golf round</option><option value="cricket">🏏 Cricket match</option><option value="general">📍 General / event</option></select></label>
+      <label><span class="label" id="teeLbl">Tee time</span><input id="tee" type="time" step="300" value="07:30"></label>
+      <label id="startWrap"><span class="label">Start on</span>
+        <select id="startHole"><option value="1">1st tee</option><option value="10">10th tee</option>
+          <optgroup label="Shotgun start"><option value="2">Hole 2 (shotgun)</option><option value="3">Hole 3 (shotgun)</option><option value="4">Hole 4 (shotgun)</option><option value="5">Hole 5 (shotgun)</option><option value="6">Hole 6 (shotgun)</option><option value="7">Hole 7 (shotgun)</option><option value="8">Hole 8 (shotgun)</option><option value="9">Hole 9 (shotgun)</option><option value="11">Hole 11 (shotgun)</option><option value="12">Hole 12 (shotgun)</option><option value="13">Hole 13 (shotgun)</option><option value="14">Hole 14 (shotgun)</option><option value="15">Hole 15 (shotgun)</option><option value="16">Hole 16 (shotgun)</option><option value="17">Hole 17 (shotgun)</option><option value="18">Hole 18 (shotgun)</option></optgroup></select></label>
+      <label id="endWrap" hidden><span class="label">End</span><input id="end" type="time" step="300" value="17:30"></label>
+      <button class="btn" id="fullDay" type="button" aria-pressed="false" hidden style="align-self:flex-end">Full day</button>
+      <label id="lenWrap"><span class="label">Round length</span>
+        <select id="len"><option value="2.25">9 holes (2h15)</option><option value="4">4h00</option><option value="4.5" selected>4h30</option><option value="5">5h00</option><option value="5.5">5h30</option></select></label>
+      <label><span class="label">Model</span>
+        <select id="model">
+          <option value="best_match">Best match (blended)</option>
+          <option value="ecmwf_ifs025">ECMWF IFS 0.25°</option>
+          <option value="ecmwf_aifs025_single">ECMWF AIFS (AI)</option>
+          <option value="gfs_seamless">NOAA GFS</option>
+          <option value="icon_seamless">DWD ICON</option>
+          <option value="ukmo_seamless">UK Met Office</option>
+          <option value="meteofrance_seamless">Météo-France</option>
+        </select></label>
+      <button class="star" id="star" title="Save to favourites" aria-label="Save to favourites">★</button>
+      <button class="btn" id="refresh">Refresh</button>
+    </div>
+  </section>
+
+  <div class="days" id="days"></div>
+
+  <section class="card round" id="round"></section>
+
+  <section class="card" id="sharePanel">
+    <div class="panelhead">
+      <span class="label">Share card for the guys</span>
+      <div class="shctl">
+        <label class="chk">Title <input type="text" id="shTitle" size="22"></label>
+        <select id="shLang" aria-label="Card language"><option value="en">English</option><option value="af">Afrikaans</option></select>
+        <label class="chk"><input type="checkbox" id="shMaps" checked> Hourly rain maps</label>
+        <select id="shStyle" aria-label="Card style"><option value="cartoon">Cartoon (tour style)</option><option value="clean">Clean</option></select>
+        <select id="shMode" aria-label="Image layout"><option value="each">One image per round</option><option value="tall">One tall image</option></select>
+      </div>
+    </div>
+    <div id="tripList" class="trip"></div>
+    <div class="actions" style="padding:0 14px 14px;margin:0">
+      <button class="btn" id="shPreview">Preview</button>
+      <button class="btn pri" id="shGo">Share / save images</button>
+      <button class="btn" id="shClear">Clear rounds</button>
+    </div>
+    <div id="shOut" class="shout"></div>
+  </section>
+
+  <section class="card chartbox">
+    <div class="panelhead" style="padding:0 0 8px"><span class="label" id="chartTitle">Temperature, wind and rain</span><span class="muted" style="font-size:.82rem">Shaded band = your round</span></div>
+    <div class="chartwrap"><canvas id="chart"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="panelhead">
+      <div class="tabs" id="wtabs">
+        <span class="label" style="margin-right:4px">Animated forecast map</span>
+        <button class="tab on" data-ov="rain">Rain & thunder</button>
+        <button class="tab" data-ov="clouds">Clouds</button>
+        <button class="tab" data-ov="lclouds">Low cloud</button>
+        <button class="tab" data-ov="fog">Fog</button>
+        <button class="tab" data-ov="wind">Wind</button>
+        <button class="tab" data-ov="radar">Live radar</button>
+      </div>
+      <div class="tabs">
+        <a class="btn" id="lnkWindy" target="_blank" rel="noopener">Windy ↗</a>
+        <a class="btn" id="lnkVentusky" target="_blank" rel="noopener">Ventusky ↗</a>
+        <a class="btn" id="lnkZoom" target="_blank" rel="noopener">Zoom Earth (satellite) ↗</a>
+        <a class="btn" id="lnkRadar" target="_blank" rel="noopener">RainViewer radar ↗</a>
+      </div>
+    </div>
+    <div class="note" style="padding-top:0">Press play on the map's timeline to watch the forecast move over the course. Data: Windy (ECMWF model).</div>
+    <iframe id="windy" title="Animated forecast map" style="display:block;width:100%;height:440px;border:0;border-radius:0 0 14px 14px" loading="lazy"></iframe>
+  </section>
+
+  <section class="card">
+    <div class="panelhead">
+      <div class="tabs" id="vtabs">
+        <button class="tab on" data-view="hourly">Hourly</button>
+        <button class="tab" data-view="m15">15-minute</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="allHours"> Show night hours</label>
+    </div>
+    <div class="tblwrap"><table id="tbl"></table></div>
+    <div class="note" id="tblNote"></div>
+  </section>
+
+  <footer>
+    <span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Courses: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Addresses: Nominatim / Photon</span>
+    <span><span id="courseSrc"></span> · <button class="btn" id="reloadCourses" style="padding:2px 8px;font-size:.78rem">Reload course list</button> · v1.8</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+"use strict";
+const VERSION = "1.8";
+
+/* ---------- storage ---------- */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem("gf." + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("gf." + k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- built-in fallback course list (approximate positions; replaced/extended by the OpenStreetMap list) ---------- */
+const BUILTIN = [
+ ["Glendower Golf Club","Edenvale, GP",-26.155,28.135],["Houghton Golf Club","Johannesburg, GP",-26.160,28.060],
+ ["Royal Johannesburg & Kensington GC","Johannesburg, GP",-26.185,28.105],["Johannesburg Country Club (Woodmead)","Sandton, GP",-26.050,28.090],
+ ["Killarney Country Club","Johannesburg, GP",-26.165,28.055],["Wanderers Golf Club","Johannesburg, GP",-26.130,28.055],
+ ["Randpark Golf Club","Randburg, GP",-26.115,27.965],["Blairgowrie Golf Club","Randburg, GP",-26.113,27.998],
+ ["Parkview Golf Club","Johannesburg, GP",-26.160,28.025],["Huddle Park Golf Club","Johannesburg, GP",-26.150,28.125],
+ ["Steyn City Golf Course","Fourways, GP",-25.985,28.005],["Dainfern Country Club","Fourways, GP",-25.995,27.995],
+ ["Kyalami Country Club","Midrand, GP",-26.000,28.070],["Modderfontein Golf Club","Modderfontein, GP",-26.090,28.165],
+ ["Serengeti Golf & Wildlife Estate","Kempton Park, GP",-26.045,28.290],["Ebotse Golf & Country Estate","Benoni, GP",-26.170,28.340],
+ ["ERPM Golf Club","Boksburg, GP",-26.195,28.215],["Eagle Canyon Country Club","Roodepoort, GP",-26.075,27.920],
+ ["Ruimsig Country Club","Roodepoort, GP",-26.085,27.880],["Soweto Country Club","Soweto, GP",-26.255,27.900],
+ ["Copperleaf Golf Estate","Centurion, GP",-25.900,28.065],["Zwartkop Country Club","Centurion, GP",-25.840,28.155],
+ ["Centurion Country Club","Centurion, GP",-25.880,28.180],["Irene Country Club","Irene, GP",-25.875,28.210],
+ ["Pretoria Country Club","Pretoria, GP",-25.785,28.240],["Waterkloof Golf Club","Pretoria, GP",-25.795,28.245],
+ ["Silver Lakes Golf Estate","Pretoria East, GP",-25.785,28.355],["Woodhill Country Club","Pretoria East, GP",-25.815,28.330],
+ ["Wingate Park Country Club","Pretoria, GP",-25.825,28.265],["Pretoria Golf Club","Pretoria West, GP",-25.745,28.170],
+ ["Emfuleni Golf Club","Vanderbijlpark, GP",-26.700,27.850],
+ ["Pecanwood Golf Estate","Hartbeespoort, NW",-25.745,27.880],["Gary Player Country Club","Sun City, NW",-25.335,27.090],
+ ["Lost City Golf Course","Sun City, NW",-25.345,27.095],["Rustenburg Golf Club","Rustenburg, NW",-25.660,27.255],
+ ["Potchefstroom Country Club","Potchefstroom, NW",-26.705,27.090],["Parys Golf & Country Estate","Parys, FS",-26.905,27.465],
+ ["Bloemfontein Golf Club","Bloemfontein, FS",-29.095,26.230],["Schoeman Park Golf Club","Bloemfontein, FS",-29.080,26.240],
+ ["Kimberley Golf Club","Kimberley, NC",-28.745,24.770],
+ ["Leopard Creek Country Club","Malelane, MP",-25.425,31.795],["Highland Gate Golf Estate","Dullstroom, MP",-25.420,30.105],
+ ["White River Country Club","White River, MP",-25.330,31.015],["Nelspruit Golf Club","Mbombela, MP",-25.475,30.975],
+ ["Polokwane Golf Club","Polokwane, LP",-23.915,29.475],
+ ["Royal Cape Golf Club","Cape Town, WC",-33.990,18.480],["Metropolitan Golf Club","Cape Town, WC",-33.903,18.410],
+ ["Mowbray Golf Club","Cape Town, WC",-33.955,18.515],["King David Mowbray Golf Club","Cape Town, WC",-33.955,18.540],
+ ["Clovelly Country Club","Fish Hoek, WC",-34.125,18.430],["Westlake Golf Club","Lakeside, WC",-34.080,18.450],
+ ["Steenberg Golf Club","Tokai, WC",-34.075,18.440],["Atlantic Beach Links","Melkbosstrand, WC",-33.735,18.445],
+ ["Milnerton Golf Club","Milnerton, WC",-33.865,18.490],["Durbanville Golf Club","Durbanville, WC",-33.835,18.640],
+ ["Erinvale Golf Estate","Somerset West, WC",-34.065,18.880],["Somerset West Golf Club","Somerset West, WC",-34.080,18.835],
+ ["Stellenbosch Golf Club","Stellenbosch, WC",-33.960,18.850],["De Zalze Golf Club","Stellenbosch, WC",-33.970,18.830],
+ ["Pearl Valley Golf Estate","Paarl, WC",-33.795,18.990],["Paarl Golf Club","Paarl, WC",-33.700,18.960],
+ ["Arabella Golf Club","Kleinmond, WC",-34.320,19.120],["Hermanus Golf Club","Hermanus, WC",-34.410,19.250],
+ ["Langebaan Country Estate","Langebaan, WC",-33.095,18.035],["Fancourt","George, WC",-33.955,22.415],
+ ["George Golf Club","George, WC",-33.960,22.455],["Oubaai Golf Estate","Herolds Bay, WC",-34.030,22.320],
+ ["Pinnacle Point Golf Estate","Mossel Bay, WC",-34.205,22.090],["Mossel Bay Golf Club","Mossel Bay, WC",-34.185,22.130],
+ ["Simola Golf Estate","Knysna, WC",-34.015,23.040],["Pezula Golf Estate","Knysna, WC",-34.070,23.080],
+ ["Plettenberg Bay Country Club","Plettenberg Bay, WC",-34.055,23.355],["Goose Valley Golf Club","Plettenberg Bay, WC",-34.075,23.375],
+ ["Humewood Golf Club","Gqeberha, EC",-33.995,25.660],["St Francis Links","St Francis Bay, EC",-34.170,24.825],
+ ["East London Golf Club","East London, EC",-33.025,27.930],["Wild Coast Sun Country Club","Port Edward, EC",-31.075,30.180],
+ ["Durban Country Club","Durban, KZN",-29.835,31.030],["Royal Durban Golf Club","Durban, KZN",-29.850,31.020],
+ ["Beachwood Golf Course","Durban North, KZN",-29.795,31.040],["Mount Edgecombe Country Club","Mount Edgecombe, KZN",-29.705,31.040],
+ ["Zimbali Country Club","Ballito, KZN",-29.540,31.205],["Simbithi Country Club","Ballito, KZN",-29.505,31.225],
+ ["Umhlali Country Club","Salt Rock, KZN",-29.475,31.230],["Prince's Grant Golf Estate","Blythedale, KZN",-29.370,31.345],
+ ["Kloof Country Club","Kloof, KZN",-29.790,30.840],["Selborne Golf Estate","Pennington, KZN",-30.355,30.665],
+ ["Port Shepstone Country Club","Port Shepstone, KZN",-30.735,30.455],["San Lameer Country Club","Southbroom, KZN",-30.880,30.400],
+ ["Southbroom Golf Club","Southbroom, KZN",-30.920,30.320],["Gowrie Farm Golf Estate","Nottingham Road, KZN",-29.357,29.995],
+ ["Victoria Country Club","Pietermaritzburg, KZN",-29.578,30.430],["Bosch Hoek Golf","Balgowan, KZN",-29.390,30.055],
+ ["Champagne Sports Resort","Drakensberg, KZN",-29.050,29.425]
+].map(r => ({n:r[0], r:r[1], lat:r[2], lon:r[3], src:"b"}));
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const fmt = (v, d=0) => v == null || Number.isNaN(v) ? "–" : Number(v).toFixed(d);
+const toMin = s => { const [h,m] = s.split(":").map(Number); return h*60 + (m||0); };
+const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0"); };
+const isoMin = s => +s.slice(11,13)*60 + +s.slice(14,16);
+const DIRS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const compass = d => d == null ? "–" : DIRS[Math.round(((d % 360)+360)%360 / 22.5) % 16];
+const dist = (a,b,c,d) => { const R=6371, r=Math.PI/180; const x=(d-b)*r*Math.cos((a+c)/2*r), y=(c-a)*r; return Math.sqrt(x*x+y*y)*R; };
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ");
+const DAYN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dParts = s => { const d = new Date(s + "T12:00:00Z"); return {dn: DAYN[d.getUTCDay()], dd: d.getUTCDate() + " " + MON[d.getUTCMonth()]}; };
+
+/* ---------- weather codes + icons ---------- */
+const WMO = {0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Rime fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",
+ 56:"Freezing drizzle",57:"Freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",
+ 77:"Snow grains",80:"Light showers",81:"Showers",82:"Violent showers",85:"Snow showers",86:"Snow showers",95:"Thunderstorm",96:"Thunderstorm, hail",99:"Severe storm, hail"};
+const CLOUD = '<path class="ic-cloud" d="M9 22h13a5 5 0 0 0 .6-9.96A7 7 0 0 0 9.3 13.2 4.5 4.5 0 0 0 9 22z"/>';
+function icon(code, day=true, cls="ico"){
+  const sun = day ? '<g><circle class="ic-sun" cx="11" cy="11" r="5"/><g stroke="var(--sun)" stroke-width="2" stroke-linecap="round"><line x1="11" y1="1.5" x2="11" y2="3.5"/><line x1="1.5" y1="11" x2="3.5" y2="11"/><line x1="4.3" y1="4.3" x2="5.7" y2="5.7"/><line x1="17.7" y1="4.3" x2="16.3" y2="5.7"/></g></g>'
+                  : '<path class="ic-moon" d="M14 3a8 8 0 1 0 7 11A6.5 6.5 0 0 1 14 3z"/>';
+  let g;
+  if (code == null) g = '<text x="15" y="20" text-anchor="middle" fill="var(--muted)" font-size="12">?</text>';
+  else if (code <= 1) g = day ? '<circle class="ic-sun" cx="15" cy="15" r="6.5"/><g stroke="var(--sun)" stroke-width="2.2" stroke-linecap="round"><line x1="15" y1="2" x2="15" y2="5"/><line x1="15" y1="25" x2="15" y2="28"/><line x1="2" y1="15" x2="5" y2="15"/><line x1="25" y1="15" x2="28" y2="15"/><line x1="5.8" y1="5.8" x2="7.9" y2="7.9"/><line x1="22.1" y1="22.1" x2="24.2" y2="24.2"/><line x1="24.2" y1="5.8" x2="22.1" y2="7.9"/><line x1="7.9" y1="22.1" x2="5.8" y2="24.2"/></g>' : '<path class="ic-moon" d="M17 4a10 10 0 1 0 9 14A8 8 0 0 1 17 4z"/>';
+  else if (code === 2) g = sun + CLOUD;
+  else if (code === 3) g = '<g transform="translate(-2,-2) scale(1.12)">' + CLOUD + '</g>';
+  else if (code === 45 || code === 48) g = '<g class="ic-fog"><line x1="4" y1="10" x2="26" y2="10"/><line x1="6" y1="15" x2="24" y2="15"/><line x1="4" y1="20" x2="26" y2="20"/><line x1="8" y1="25" x2="22" y2="25"/></g>';
+  else if (code >= 95) g = '<g transform="translate(0,-4)">' + CLOUD + '</g><path class="ic-bolt" d="M16 17l-4 7h3l-2 6 6-8h-3l2-5z"/>';
+  else if ((code >= 71 && code <= 77) || code === 85 || code === 86) g = '<g transform="translate(0,-4)">' + CLOUD + '</g><g fill="var(--rain)"><circle cx="11" cy="24" r="1.6"/><circle cx="16" cy="27" r="1.6"/><circle cx="21" cy="24" r="1.6"/></g>';
+  else { const heavy = [55,57,63,65,67,81,82].includes(code), n = heavy ? 3 : 2;
+    let lines = ""; for (let i=0;i<n;i++){ const x = 11 + i*(n===3?5:7); lines += `<line x1="${x}" y1="21" x2="${x-2}" y2="27"/>`; }
+    g = (code >= 80 && day ? sun : "") + '<g transform="translate(0,-4)">' + CLOUD + '</g><g class="ic-rain">' + lines + '</g>'; }
+  return `<svg class="${cls}" viewBox="0 0 30 30" role="img" aria-label="${esc(WMO[code] || "")}">${g}</svg>`;
+}
+const arrow = d => d == null ? "" : `<svg class="arrow" viewBox="0 0 14 14" style="transform:rotate(${(d+180)%360}deg)" aria-hidden="true"><path d="M7 1 L11 9 L7 7.2 L3 9 Z" fill="currentColor"/><line x1="7" y1="7" x2="7" y2="13" stroke="currentColor" stroke-width="1.6"/></svg>`;
+
+/* ---------- golf scoring ---------- */
+/* lightning risk 0 none · 1 low · 2 moderate · 3 high (model thunderstorm code, else storm energy CAPE + rain chance) */
+function lightningRisk(h){
+  if (h.lr != null) return h.lr;
+  if (h.code != null && h.code >= 95) return 3;
+  const pp = h.pp ?? 0, c = h.cape;
+  if (c == null) return 0;
+  if ((c >= 1500 && pp >= 30) || (c >= 1000 && pp >= 50)) return 2;
+  if ((c >= 800 && pp >= 20) || c >= 1500) return 1;
+  return 0;
+}
+const LR_TXT = ["–","Low","Moderate","High"], LR_COL = ["","#e0c341","#e7892b","#d63c2f"];
+function stormLevel(h){ const r = lightningRisk(h); return r >= 3 ? 2 : r >= 2 ? 1 : 0; }
+function hourScore(h){
+  let s = 10;
+  if (h.pp != null) s -= Math.min(3, h.pp / 25);
+  const pr = h.pr ?? 0, k = h.per15 ? 4 : 1;           /* 15-min precip scaled to an hourly rate */
+  const rate = pr * k;
+  if (rate >= 2) s -= 4; else if (rate >= 0.5) s -= 2.5; else if (rate >= 0.1) s -= 1;
+  const g = h.g ?? (h.w != null ? h.w * 1.5 : null);
+  if (g != null){ if (g > 50) s -= 4; else if (g > 40) s -= 2.5; else if (g > 30) s -= 1.5; else if (g > 22) s -= 0.5; }
+  const at = h.at ?? h.t;
+  if (at != null){ if (at < 5 || at > 36) s -= 3; else if (at < 9 || at > 33) s -= 1.5; else if (at < 12 || at > 30) s -= 0.5; }
+  const st = stormLevel(h);
+  if (st === 2) s = Math.min(s, 1); else if (st === 1) s -= 2;
+  return clamp(Math.round(s * 2) / 2, 0, 10);
+}
+function cricketScore(h){
+  let s = 10;
+  if (h.pp != null) s -= Math.min(3, h.pp / 20);
+  const rate = (h.pr ?? 0) * (h.per15 ? 4 : 1);
+  if (rate >= 1) s -= 7; else if (rate >= 0.1) s -= 5;          /* any rain stops play */
+  const g = h.g ?? (h.w != null ? h.w * 1.5 : null);
+  if (g != null){ if (g > 50) s -= 2; else if (g > 40) s -= 1; }
+  const at = h.at ?? h.t;
+  if (at != null){ if (at > 34) s -= 2; else if (at > 31) s -= 1; else if (at < 10) s -= 1; }
+  if (h.day1 === 0 && h.dp != null && h.t != null && h.t - h.dp <= 2) s -= 1;   /* dew after dark */
+  const st = stormLevel(h);
+  if (st === 2) s = Math.min(s, 0.5); else if (st === 1) s -= 2;
+  return clamp(Math.round(s * 2) / 2, 0, 10);
+}
+const scoreFor = (h, mode) => mode === "cricket" ? cricketScore(h) : hourScore(h);
+const MODE_TXT = {golf:{start:"Tee time", item:"round", emoji:"⛳", score:"golf score"}, cricket:{start:"Start", item:"match", emoji:"🏏", score:"cricket score"}, general:{start:"Start", item:"event", emoji:"📍", score:"weather score"}};
+const scoreCls = s => s >= 8 ? "good" : s >= 6 ? "ok" : s >= 4 ? "fair" : "poor";
+const scoreTxt = s => s >= 8 ? "Perfect" : s >= 6 ? "Good" : s >= 4 ? "Playable" : "Poor";
+function clubGuide(w){
+  if (w == null) return "–";
+  if (w < 10) return "Calm: no club adjustment";
+  if (w < 20) return "About 1 club into / down wind";
+  if (w < 30) return "1–2 clubs; aim off on cross-winds";
+  if (w < 40) return "2–3 clubs; keep the ball low";
+  return "3+ clubs; punch shots, tough putting";
+}
+
+/* ---------- state ---------- */
+const S = {
+  loc: LS.get("loc", {n:"Gowrie Farm Golf Estate", r:"Nottingham Road, KZN", lat:-29.357, lon:29.995, kind:"course"}),
+  tee: LS.get("tee", "07:30"), len: LS.get("len", 4.5), model: LS.get("model", "best_match"),
+  view: "hourly", all: false, sel: 0, fc: null, m15: null, m15err: null, H: [], D: [], M: [], courses: [], favs: LS.get("favs", []),
+  cache: {}
+};
+
+/* ---------- course list ---------- */
+const OVERPASS = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+const OQ = '[out:json][timeout:90];area["ISO3166-1"="ZA"][admin_level=2]->.a;(way["leisure"="golf_course"](area.a);relation["leisure"="golf_course"](area.a);node["leisure"="golf_course"](area.a););out center tags;';
+function mergeCourses(osm){
+  const out = osm.slice();
+  for (const b of BUILTIN){ if (!osm.some(o => dist(o.lat,o.lon,b.lat,b.lon) < 3)) out.push(b); }
+  out.sort((a,b) => a.n.localeCompare(b.n));
+  return out;
+}
+function setCourseSrc(){
+  const c = LS.get("osm", null);
+  $("#courseSrc").textContent = c ? `${S.courses.length} courses (OpenStreetMap, ${c.date})` : `${S.courses.length} courses (built-in list)`;
+}
+async function loadOSM(force){
+  const c = LS.get("osm", null);
+  if (c && !force && Date.now() - c.ts < 30*864e5){ S.courses = mergeCourses(c.list); setCourseSrc(); return; }
+  S.courses = c ? mergeCourses(c.list) : BUILTIN.slice().sort((a,b)=>a.n.localeCompare(b.n)); setCourseSrc();
+  $("#courseSrc").textContent += " · updating…";
+  for (const ep of OVERPASS){
+    try{
+      const r = await fetch(ep, {method:"POST", body:"data=" + encodeURIComponent(OQ), headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+      if (!r.ok) continue;
+      const j = await r.json();
+      const list = [];
+      for (const e of j.elements || []){
+        const t = e.tags || {}; const n = t.name || t["name:en"]; if (!n) continue;
+        const lat = e.center ? e.center.lat : e.lat, lon = e.center ? e.center.lon : e.lon; if (lat == null) continue;
+        if (list.some(o => o.n === n && dist(o.lat,o.lon,lat,lon) < 2)) continue;
+        const r2 = [t["addr:suburb"], t["addr:city"] || t["addr:town"] || t["is_in"], t["addr:province"]].filter(Boolean).join(", ");
+        list.push({n, r:r2, lat:+lat.toFixed(5), lon:+lon.toFixed(5), src:"o"});
+      }
+      if (list.length > 50){
+        const d = new Date(); LS.set("osm", {ts: Date.now(), date: d.getDate()+" "+MON[d.getMonth()]+" "+d.getFullYear(), list});
+        S.courses = mergeCourses(list); setCourseSrc(); fillRegions(); if (mapObj) drawCourseMarkers(); return;
+      }
+    }catch(e){ /* try next mirror */ }
+  }
+  setCourseSrc(); $("#courseSrc").textContent += " · OSM update failed, using cached/built-in";
+}
+/* give OSM courses without an address a "near X" hint from the nearest built-in course */
+function fillRegions(){
+  for (const c of S.courses){ if (c.r) continue;
+    let best = null, bd = 1e9; for (const b of BUILTIN){ const d = dist(c.lat,c.lon,b.lat,b.lon); if (d < bd){ bd = d; best = b; } }
+    if (best && bd < 60) c.r = "near " + best.r; }
+}
+
+/* ---------- search ---------- */
+let geoTimer = null, resIdx = -1, resItems = [], geoSeq = 0;
+function courseMatches(q){
+  const toks = norm(q).split(/\s+/).filter(Boolean); if (!toks.length) return [];
+  const out = [];
+  for (const c of S.courses){
+    const hay = norm(c.n + " " + (c.r || ""));
+    if (toks.every(t => hay.includes(t))){
+      const nn = norm(c.n); out.push({c, s: (nn.startsWith(toks[0]) ? 0 : 1) + (nn.includes(toks.join(" ")) ? 0 : 0.5)});
+    }
+  }
+  return out.sort((a,b) => a.s - b.s || a.c.n.localeCompare(b.c.n)).slice(0, 10).map(x => x.c);
+}
+function renderResults(courses, addrs, loadingAddr){
+  const box = $("#results"); resItems = []; let html = "";
+  const q = $("#q").value.trim();
+  const m = q.match(/^\s*(-?\d{1,2}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if (m){ resItems.push({n:`Pin at ${(+m[1]).toFixed(4)}, ${(+m[2]).toFixed(4)}`, r:"Coordinates", lat:+m[1], lon:+m[2], kind:"pin"}); }
+  if (resItems.length) html += "<h4>Coordinates</h4>" + resBtn(0);
+  if (courses.length){ html += "<h4>Golf courses</h4>"; for (const c of courses){ resItems.push({...c, kind:"course"}); html += resBtn(resItems.length-1); } }
+  if (addrs && addrs.length){ html += "<h4>Addresses & places</h4>"; for (const a of addrs){ resItems.push({...a, kind:"address"}); html += resBtn(resItems.length-1); } }
+  if (loadingAddr) html += '<h4>Addresses & places</h4><div class="res muted">Searching…</div>';
+  if (!html) html = q.length < 3 ? '<div class="res muted">Type at least 3 letters…</div>' : '<div class="res muted">Nothing found</div>';
+  box.innerHTML = html; box.hidden = !q; resIdx = -1;
+}
+function resBtn(i){ const it = resItems[i]; return `<button class="res" data-i="${i}"><b>${esc(it.n)}</b><span>${esc(it.r || "")}</span></button>`; }
+async function geocode(q, seq){
+  const sa = $("#saOnly").checked; let list = [];
+  try{
+    const u = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=" + encodeURIComponent(q) + (sa ? "&countrycodes=za" : "");
+    const r = await fetch(u, {headers:{"Accept-Language":"en"}});
+    if (r.ok){ const j = await r.json(); list = j.map(x => { const parts = x.display_name.split(", "); return {n: parts.slice(0,2).join(", "), r: parts.slice(2,5).join(", "), lat:+x.lat, lon:+x.lon}; }); }
+  }catch(e){}
+  if (!list.length){
+    try{
+      const u = "https://photon.komoot.io/api/?limit=6&lang=en&q=" + encodeURIComponent(q) + (sa ? "&bbox=16.3,-35.0,33.0,-22.0" : "");
+      const r = await fetch(u); if (r.ok){ const j = await r.json();
+        list = (j.features || []).map(f => { const p = f.properties || {};
+          return {n: [p.housenumber, p.street].filter(Boolean).join(" ") || p.name || "Unnamed", r: [p.name !== p.street ? p.name : "", p.district, p.city, p.state].filter(Boolean).join(", "), lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]}; }); }
+    }catch(e){}
+  }
+  if (seq === geoSeq) renderResults(courseMatches(q), list, false);
+}
+function onSearchInput(){
+  const q = $("#q").value.trim(); clearTimeout(geoTimer); geoSeq++;
+  const cm = courseMatches(q);
+  if (q.length >= 3 && !/^-?\d/.test(q)){ renderResults(cm, null, true); const s = geoSeq; geoTimer = setTimeout(() => geocode(q, s), 550); }
+  else renderResults(cm, null, false);
+}
+function pick(it){
+  $("#results").hidden = true; $("#q").value = ""; $("#q").blur();
+  setLoc({n:it.n, r:it.r || "", lat:it.lat, lon:it.lon, kind:it.kind || "address"});
+}
+
+/* ---------- favourites ---------- */
+const favKey = l => l.lat.toFixed(3) + "," + l.lon.toFixed(3);
+function renderFavs(){
+  const box = $("#favs");
+  box.innerHTML = S.favs.length ? '<span class="label" style="align-self:center">Favourites</span>' + S.favs.map((f,i) => `<button class="fav" data-f="${i}">${esc(f.n)}</button>`).join("") : "";
+  $("#star").classList.toggle("on", S.favs.some(f => favKey(f) === favKey(S.loc)));
+}
+
+/* ---------- data ---------- */
+const HV = "temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,precipitation_probability,precipitation,weather_code,cloud_cover,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,cape,is_day";
+const DV = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max";
+const MV = "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m";
+function fcUrl(extra, loc = S.loc, model = S.model){
+  const p = new URLSearchParams({latitude:loc.lat, longitude:loc.lon, timezone:"auto", forecast_days:"16", wind_speed_unit:"kmh"});
+  if (model !== "best_match") p.set("models", model);
+  for (const k in extra) p.set(k, extra[k]);
+  return "https://api.open-meteo.com/v1/forecast?" + p.toString();
+}
+async function getJSON(u){
+  const r = await fetch(u); let j = null; try{ j = await r.json(); }catch(e){}
+  if (!r.ok || !j || j.error) throw new Error((j && j.reason) || ("HTTP " + r.status));
+  return j;
+}
+function status(msg, err){ const s = $("#status"); if (!msg){ s.hidden = true; return; } s.hidden = false; s.textContent = msg; s.classList.toggle("err", !!err); }
+
+async function load(force){
+  const key = favKey(S.loc) + "|" + S.model, c = S.cache[key];
+  status("Loading forecast…");
+  try{
+    if (c && !force && Date.now() - c.ts < 20*60e3){ S.fc = c.fc; S.m15 = c.m15; S.m15err = c.m15err; }
+    else{
+      const [fc, m15] = await Promise.allSettled([getJSON(fcUrl({hourly:HV, daily:DV})), getJSON(fcUrl({minutely_15:MV}))]);
+      if (fc.status !== "fulfilled") throw fc.reason;
+      S.fc = fc.value; S.m15 = m15.status === "fulfilled" ? m15.value : null; S.m15err = m15.status === "fulfilled" ? null : String(m15.reason && m15.reason.message || m15.reason);
+      S.cache[key] = {ts: Date.now(), fc: S.fc, m15: S.m15, m15err: S.m15err};
+    }
+    S.fetched = (c && !force && S.cache[key] === c) ? c.ts : S.cache[key].ts;
+    build(); status(null);
+    const today = new Date().toISOString().slice(0,10);
+    if (S.sel >= S.D.length) S.sel = 0;
+    renderAll();
+  }catch(e){
+    status("Forecast could not be loaded: " + (e.message || e) + ". Check your internet connection, then press Refresh. If it says the daily limit is exceeded, try again later or pick another model.", true);
+  }
+}
+function build(){
+  const P = parseFC(S.fc); S.H = P.H; S.D = P.D;
+  S.M = [];
+  if (S.m15 && S.m15.minutely_15){
+    const m = S.m15.minutely_15;
+    S.M = m.time.map((t,i) => ({time:t, day:t.slice(0,10), min:isoMin(t), t:m.temperature_2m?.[i], at:m.apparent_temperature?.[i], rh:m.relative_humidity_2m?.[i],
+      pr:m.precipitation?.[i], code:m.weather_code?.[i], w:m.wind_speed_10m?.[i], wd:m.wind_direction_10m?.[i], g:m.wind_gusts_10m?.[i], per15:true})).filter(x => x.t != null);
+    const hIdx = {}; for (const h of S.H) hIdx[h.time.slice(0,13)] = h;
+    S.M.forEach(x => { const h = hIdx[x.time.slice(0,13)]; x.lr = x.code != null && x.code >= 95 ? 3 : (h ? h.lr : 0); x.cape = h?.cape; x.dp = h?.dp; x.day1 = h?.day1; x.score = scoreFor(x, S.mode); });
+  }
+}
+function parseFC(fc, mode = S.mode){
+  const h = fc.hourly, d = fc.daily, S = {};
+  S.H = h.time.map((t,i) => ({time:t, day:t.slice(0,10), min:isoMin(t), t:h.temperature_2m[i], at:h.apparent_temperature?.[i], rh:h.relative_humidity_2m?.[i],
+    pp:h.precipitation_probability?.[i], pr:h.precipitation?.[i], code:h.weather_code?.[i], cc:h.cloud_cover?.[i], vis:h.visibility?.[i], dp:h.dew_point_2m?.[i],
+    w:h.wind_speed_10m?.[i], wd:h.wind_direction_10m?.[i], g:h.wind_gusts_10m?.[i], uv:h.uv_index?.[i], cape:h.cape?.[i], day1:h.is_day?.[i]}));
+  S.H.forEach(x => { x.lr = lightningRisk(x); x.score = x.t == null ? null : scoreFor(x, mode); });
+  S.D = d.time.map((t,i) => ({date:t, code:d.weather_code?.[i], tmax:d.temperature_2m_max?.[i], tmin:d.temperature_2m_min?.[i], psum:d.precipitation_sum?.[i],
+    ppmax:d.precipitation_probability_max?.[i], wmax:d.wind_speed_10m_max?.[i], gmax:d.wind_gusts_10m_max?.[i], wdir:d.wind_direction_10m_dominant?.[i],
+    sunrise:d.sunrise?.[i], sunset:d.sunset?.[i], uv:d.uv_index_max?.[i]})).filter(x => x.tmax != null);
+  for (const D of S.D){
+    const sr = D.sunrise ? isoMin(D.sunrise) : 360, ss = D.sunset ? isoMin(D.sunset) : 1110;
+    const hs = S.H.filter(x => x.day === D.date && x.min >= sr - 30 && x.min <= ss - 30 && x.score != null);
+    D.score = hs.length ? hs.reduce((a,x) => a + x.score, 0) / hs.length : null;
+  }
+  return S;
+}
+
+/* ---------- round maths ---------- */
+function roundWin(){ const a = toMin(S.tee); return {a, b: a + S.len*60, len: S.len*60, start: S.startHole || 1}; }
+const nHoles = w => w.len <= 150 ? 9 : 18;                     /* 9-hole option = 2h15 */
+function playIdx(t, w){ return clamp(Math.floor((t - w.a) / w.len * nHoles(w)), 0, nHoles(w) - 1); }
+function holeNo(i, w){ return ((w.start || 1) - 1 + i) % 18 + 1; }
+function hole(t, w){ return holeNo(playIdx(t, w), w); }
+function holeRanges(list){
+  const out = []; let a = list[0], b = list[0];
+  for (let i = 1; i < list.length; i++){ if (list[i] === b + 1) b = list[i]; else { out.push(a === b ? a : a + "–" + b); a = b = list[i]; } }
+  out.push(a === b ? a : a + "–" + b); return out.join(", ");
+}
+function holesFor(a, b, w){
+  const s = Math.max(a, w.a), e = Math.min(b, w.b); if (e <= s) return "";
+  const i1 = playIdx(s, w), i2 = playIdx(e - 0.01, w), list = [];
+  for (let i = i1; i <= i2; i++) list.push(holeNo(i, w));
+  return holeRanges(list);
+}
+/* hole-by-hole: estimated tee time and weather per hole, from 15-min data when present, else interpolated hourly */
+function holeRows(w, date, H, M){
+  const n = nHoles(w), per = w.len / n, out = [];
+  const hrs = H.filter(x => x.day === date), qs = (M || []).filter(x => x.day === date);
+  const interp = (mid, k) => { const i = hrs.findIndex(x => x.min > mid); const a = hrs[Math.max(0, i - 1)], b = hrs[i < 0 ? hrs.length - 1 : i];
+    if (!a || !b || a[k] == null || b[k] == null) return a?.[k] ?? b?.[k] ?? null; if (a === b) return a[k]; const f = (mid - a.min)/(b.min - a.min); return a[k] + (b[k] - a[k])*f; };
+  for (let i = 0; i < n; i++){
+    const t0 = w.a + i*per, mid = t0 + per/2, hr = hrs.find(x => x.min <= mid && x.min + 60 > mid) || {};
+    let q = null; if (qs.length){ q = qs.reduce((b, x) => Math.abs(x.min + 7.5 - mid) < Math.abs(b.min + 7.5 - mid) ? x : b, qs[0]); if (Math.abs(q.min + 7.5 - mid) > 20) q = null; }
+    out.push({i, no: holeNo(i, w), t0, hour: Math.floor(t0/60),
+      t: q?.t ?? interp(mid, "t"), w: q?.w ?? interp(mid, "w"), g: q?.g ?? interp(mid, "g"), wd: q?.wd ?? hr.wd,
+      pr: q ? (q.pr ?? 0) * 4 : (hr.pr ?? 0), pp: hr.pp, lr: Math.max(hr.lr ?? 0, q?.lr ?? 0), code: q?.code ?? hr.code, day: hr.day1 !== 0});
+  }
+  return out;
+}
+const nineName = (rows, lang) => { const lo = Math.min(...rows.map(r => r.no)), hi = Math.max(...rows.map(r => r.no)), en = lang !== "af";
+  if (rows.every(r => r.no <= 9)) return en ? "Front nine" : "Voorste nege"; if (rows.every(r => r.no >= 10)) return en ? "Back nine" : "Agterste nege";
+  return (en ? "Holes " : "Putjies ") + holeRanges(rows.map(r => r.no)); };
+function roundStats(D, w, H = S.H){
+  const hs = H.filter(x => x.day === D.date && x.min + 60 > w.a && x.min < w.b && x.t != null);
+  if (!hs.length) return null;
+  let lrmax = 0, wsum = 0, sc = 0, rain = 0, ppmax = null, gmax = 0, wavg = 0, atmax = -99, atmin = 99, uv = 0, storm = 0, vx = 0, vy = 0, wsx = 0;
+  for (const x of hs){
+    const ov = (Math.min(x.min + 60, w.b) - Math.max(x.min, w.a)) / 60;
+    wsum += ov; sc += x.score * ov; rain += (x.pr || 0) * ov;
+    if (x.pp != null) ppmax = Math.max(ppmax ?? 0, x.pp);
+    gmax = Math.max(gmax, x.g ?? 0); wavg += (x.w ?? 0) * ov;
+    const at = x.at ?? x.t; atmax = Math.max(atmax, at); atmin = Math.min(atmin, at);
+    uv = Math.max(uv, x.uv ?? 0); storm = Math.max(storm, stormLevel(x)); lrmax = Math.max(lrmax, x.lr ?? 0);
+    if (x.wd != null){ vx += Math.sin(x.wd*Math.PI/180) * (x.w||1) * ov; vy += Math.cos(x.wd*Math.PI/180) * (x.w||1) * ov; wsx += ov; }
+  }
+  const tStart = hs[0].t, tEnd = hs[hs.length-1].t;
+  const wd = wsx ? (Math.atan2(vx, vy) * 180 / Math.PI + 360) % 360 : null;
+  const rainHrs = hs.filter(x => (x.pr ?? 0) >= 0.2).map(x => x.min);
+  const dewFrom = hs.find(x => x.day1 === 0 && x.dp != null && x.t != null && x.t - x.dp <= 2);
+  if (storm === 2) sc = Math.min(sc, 4*wsum);   /* a forecast thunderstorm caps the overall score */
+  return {rainHrs, dewFrom: dewFrom ? dewFrom.min : null, lr: lrmax, hs, score: Math.round(sc/wsum*10)/10, rain, ppmax, gmax, wavg: wavg/wsum, atmax, atmin, uv, storm, tStart, tEnd, wd};
+}
+function bestTee(D){
+  const sr = D.sunrise ? isoMin(D.sunrise) : 360, ss = D.sunset ? isoMin(D.sunset) : 1110, len = S.len*60;
+  let best = null;
+  for (let a = Math.ceil(sr/30)*30; a + len <= ss; a += 30){
+    const st = roundStats(D, {a, b:a+len, len}); if (!st) continue;
+    if (!best || st.score > best.score + 0.05) best = {a, score: st.score};
+  }
+  return best;
+}
+
+/* ---------- render ---------- */
+function renderAll(){ renderHead(); renderDays(); renderRound(); renderChart(); renderTable(); renderFavs(); }
+function renderHead(){
+  const L = S.loc, D = S.D[S.sel];
+  $("#locKind").textContent = L.kind === "course" ? "Golf course" : L.kind === "pin" ? "Map pin" : "Address";
+  $("#locName").textContent = L.n;
+  $("#locSub").textContent = [L.r, `${L.lat.toFixed(4)}, ${L.lon.toFixed(4)}`].filter(Boolean).join(" · ");
+  const elev = S.fc?.elevation;
+  const carry = elev != null ? Math.max(0, elev * 3.281 / 1000 * 2) : null;
+  const f = [];
+  if (elev != null) f.push(["Altitude", `${Math.round(elev)} m`]);
+  if (carry != null && S.mode === "golf") f.push(["Ball carry vs sea level", carry < 0.5 ? "≈ same" : `+${carry.toFixed(0)}%`]);
+  if (D){ f.push(["Sunrise / sunset", `${D.sunrise ? D.sunrise.slice(11,16) : "–"} / ${D.sunset ? D.sunset.slice(11,16) : "–"}`]);
+    if (D.sunset && S.mode === "golf") f.push(["Last tee for 18", hhmm(isoMin(D.sunset) - S.len*60)]);
+    if (D.sunset && S.mode === "cricket") f.push(["Floodlights needed from", "≈ " + hhmm(isoMin(D.sunset) - 20)]); }
+  if (S.fetched) f.push(["Updated", new Date(S.fetched).toTimeString().slice(0,5) + (S.fc?.timezone_abbreviation ? " " + S.fc.timezone_abbreviation : "")]);
+  $("#facts").innerHTML = f.map(([k,v]) => `<div class="fact"><span class="label">${k}</span><span class="v">${esc(v)}</span></div>`).join("");
+}
+function renderDays(){
+  $("#days").innerHTML = S.D.map((D,i) => { const p = dParts(D.date), sc = D.score;
+    return `<button class="day ${i===S.sel?"on":""}" data-d="${i}" aria-pressed="${i===S.sel}">
+      <span class="dn">${i===0?"Today":p.dn}${sc!=null?`<span class="chip s-${scoreCls(sc)}" style="min-width:0;font-size:.72rem;padding:1px 5px" title="Daylight golf score">${sc.toFixed(1)}</span>`:""}</span>
+      <span class="dd">${p.dd}</span>
+      <span class="row">${icon(D.code, true)}<span class="tt">${fmt(D.tmax)}°<small> ${fmt(D.tmin)}°</small></span></span>
+      <span class="mini"><span title="Rain chance">${D.ppmax!=null?fmt(D.ppmax)+"%":fmt(D.psum,1)+"mm"}</span><span title="Max gust">${arrow(D.wdir)}${fmt(D.gmax)}</span></span>
+    </button>`; }).join("");
+}
+function renderRound(){
+  const D = S.D[S.sel], box = $("#round"); if (!D){ box.innerHTML = ""; return; }
+  const w = roundWin(), st = roundStats(D, w), p = dParts(D.date);
+  if (!st){ box.innerHTML = '<div class="muted">No forecast data for this time.</div>'; return; }
+  const issues = issuesFor(st, D, w, "en", S.mode), MT = MODE_TXT[S.mode];
+  const bt = bestTee(D), cls = scoreCls(st.score);
+  const turn = hhmm(w.a + w.len/2);
+  box.innerHTML = `
+    <div class="scorebig c-${cls}"><div><div class="n">${st.score.toFixed(1)}</div><div class="t">${scoreTxt(st.score)}</div></div></div>
+    <div class="verdict">
+      <div class="label">${p.dn} ${p.dd} · ${S.mode === "golf" ? `tee off ${S.tee} · turn ≈ ${turn} · finish ≈ ${hhmm(w.b)}` : (w.len >= 1440 ? `${MT.emoji} Full day, hour by hour` : `${MT.emoji} ${S.tee} – ${hhmm(w.b)}`)}</div>
+      <h2>${esc(S.loc.n)}</h2>
+      <ul>${issues.map(([c,t]) => `<li class="c-${c}" style="color:inherit"><span class="c-${c}">●</span> ${esc(t)}</li>`).join("")}</ul>
+      <div class="grid4">
+        <div><div class="label">Temperature</div><div class="v">${fmt(st.tStart)}° → ${fmt(st.tEnd)}°</div></div>
+        <div><div class="label">Feels like</div><div class="v">${fmt(st.atmin)}° – ${fmt(st.atmax)}°</div></div>
+        <div><div class="label">Rain</div><div class="v">${st.rain.toFixed(1)} mm${st.ppmax!=null?` · ${Math.round(st.ppmax)}%`:""}</div></div>
+        <div><div class="label">Wind / max gust</div><div class="v">${arrow(st.wd)}${compass(st.wd)} ${fmt(st.wavg)} / ${fmt(st.gmax)} km/h</div></div>
+        ${S.mode === "golf" ? `<div><div class="label">Club guide (rule of thumb)</div><div class="v" style="font-family:var(--f-body)">${clubGuide(st.wavg)}</div></div>` : ""}
+        ${S.mode === "cricket" ? `<div><div class="label">Rain interruptions</div><div class="v">${st.rainHrs.length ? st.rainHrs.length + " h likely" : "None expected"}</div></div>
+        <div><div class="label">Dew after dark</div><div class="v">${st.dewFrom != null ? "From ≈ " + hhmm(st.dewFrom) : "Unlikely"}</div></div>` : ""}
+        <div><div class="label">Lightning risk</div><div class="v" style="color:${st.lr ? LR_COL[st.lr] : "inherit"};font-weight:${st.lr ? 700 : 400}">${st.lr ? "⚡ " : ""}${LR_TXT[st.lr] === "–" ? "None" : LR_TXT[st.lr]}</div></div>
+        <div><div class="label">Max UV</div><div class="v">${fmt(st.uv)}</div></div>
+        <div ${w.len >= 1440 ? "hidden" : ""}><div class="label">${S.mode === "golf" ? "Best tee time this day" : "Best start time this day"}</div><div class="v">${bt ? `${hhmm(bt.a)} <span class="c-${scoreCls(bt.score)}">(${bt.score.toFixed(1)})</span>` : "–"}</div></div>
+      </div>
+      ${S.mode === "golf" ? holeSection(w, D) : ""}
+      <div class="actions">
+        ${bt && w.len < 1440 && hhmm(bt.a) !== S.tee ? `<button class="btn" id="useBest">Use ${hhmm(bt.a)}</button>` : ""}
+        <button class="btn" id="addTrip">Add ${MT.item} to share card</button>
+        <button class="btn pri" id="copyBtn">Copy ${MT.item} summary</button>
+      </div>
+    </div>`;
+  S.lastSummary = {st, D, w, issues, bt};
+}
+function holeSection(w, D){
+  const rows = holeRows(w, D.date, S.H, S.M), n = rows.length, nines = n === 18 ? [rows.slice(0,9), rows.slice(9)] : [rows];
+  const tile = r => `<div class="ht ${r.hour % 2 ? "alt" : ""}">
+      <div class="hn"><b>${r.no}</b><span>${hhmm(r.t0)}</span></div>
+      ${icon(r.code, r.day, "ico sm")}
+      <div class="hv">${fmt(r.t)}°</div>
+      <div class="hw">${arrow(r.wd)}${fmt(r.w)}<small>/${fmt(r.g)}</small></div>
+      <div class="hr">${r.pr >= 0.1 ? fmt(r.pr,1) + "mm" : r.pp != null ? fmt(r.pp) + "%" : "–"}</div>
+      ${r.lr ? `<div class="hl" style="background:${LR_COL[r.lr]}">⚡ ${LR_TXT[r.lr]}</div>` : ""}
+    </div>`;
+  return `<div class="holebox"><div class="label" style="margin:14px 0 6px">Hole by hole · starting on hole ${w.start || 1} · ~${Math.round(w.len/n)} min per hole · shading groups holes played in the same hour</div>
+    ${nines.map(nn => `<div class="ninehead">${nineName(nn, "en")}</div><div class="holes9">${nn.map(tile).join("")}</div>`).join("")}</div>`;
+}
+function summaryText(){
+  const {st, D, w, issues} = S.lastSummary, p = dParts(D.date);
+  const lines = [
+    S.mode === "golf" ? `⛳ ${S.loc.n} — ${p.dn} ${p.dd}, tee off ${S.tee}` : `${MODE_TXT[S.mode].emoji} ${S.loc.n} — ${p.dn} ${p.dd}, ${w.len >= 1440 ? "full day" : S.tee + "–" + hhmm(w.b)}`,
+    `${MODE_TXT[S.mode].score[0].toUpperCase() + MODE_TXT[S.mode].score.slice(1)} ${st.score.toFixed(1)}/10 (${scoreTxt(st.score)})`,
+    `🌡 ${fmt(st.tStart)}° → ${fmt(st.tEnd)}° (feels ${fmt(st.atmin)}–${fmt(st.atmax)}°)`,
+    `🌧 ${st.rain.toFixed(1)} mm${st.ppmax!=null?`, up to ${Math.round(st.ppmax)}%`:""}`,
+    `💨 ${compass(st.wd)} ${fmt(st.wavg)} km/h, gusts ${fmt(st.gmax)} km/h`,
+    ...(st.lr ? [`⚡ Lightning risk: ${LR_TXT[st.lr]}`] : []),
+    ...issues.filter(i => i[0] !== "good").map(i => "• " + i[1]),
+    "", "Hour by hour:"
+  ];
+  for (const x of st.hs) lines.push(`${x.time.slice(11,16)}  ${fmt(x.t)}°  ${x.pp!=null?fmt(x.pp)+"%":""} ${fmt(x.pr,1)}mm  ${compass(x.wd)} ${fmt(x.w)}/${fmt(x.g)} km/h  ${S.mode === "golf" ? "holes " + holesFor(x.min, x.min+60, w) : ""}${x.lr ? "  ⚡" + LR_TXT[x.lr] : ""}`);
+  lines.push("", "— Weather or Not");
+  return lines.join("\n");
+}
+
+/* chart */
+let chart = null;
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function rowsForDay(){
+  const D = S.D[S.sel]; if (!D) return [];
+  const src = S.view === "m15" && S.M.length ? S.M : S.H;
+  let rows = src.filter(x => x.day === D.date);
+  if (!S.all && D.sunrise && D.sunset){ const a = isoMin(D.sunrise) - 60, b = isoMin(D.sunset) + 60; rows = rows.filter(x => x.min >= a && x.min <= b); }
+  return rows;
+}
+function renderChart(){
+  if (typeof Chart === "undefined"){ const w = $(".chartwrap"); if (!w.dataset.off){ w.dataset.off = 1; w.style.height = "auto"; w.innerHTML = '<div class="muted" style="padding:20px">Chart library could not load (offline?). The tables below still work.</div>'; } return; }
+  const rows = rowsForDay(), w = roundWin();
+  const per15 = S.view === "m15" && S.M.length;
+  $("#chartTitle").textContent = per15 ? "Temperature, wind and rain · 15-minute" : "Temperature, wind and rain · hourly";
+  const labels = rows.map(x => x.time.slice(11,16));
+  const ink = tok("--ink"), muted = tok("--muted"), line = tok("--line"), flag = tok("--flag"), rain = tok("--rain"), sun = tok("--sun"), green = tok("--green"), hl = tok("--hl");
+  const step = per15 ? 15 : 60;
+  const bandPlugin = { id:"band", beforeDatasetsDraw(c){
+    const xs = c.scales.x; if (!rows.length) return;
+    const pos = m => { const f = (m - rows[0].min) / step; const i = clamp(Math.floor(f), 0, rows.length-1), j = clamp(i+1, 0, rows.length-1);
+      const pi = xs.getPixelForValue(i), pj = xs.getPixelForValue(j); return pi + (pj - pi) * (f - i); };
+    const x1 = clamp(pos(w.a), c.chartArea.left, c.chartArea.right), x2 = clamp(pos(w.b), c.chartArea.left, c.chartArea.right);
+    if (x2 <= x1) return; const g = c.ctx; g.save(); g.fillStyle = hl; g.fillRect(x1, c.chartArea.top, x2-x1, c.chartArea.bottom-c.chartArea.top);
+    g.strokeStyle = flag; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x1, c.chartArea.top); g.lineTo(x1, c.chartArea.bottom); g.stroke();
+    g.fillStyle = flag; g.font = "600 11px " + getComputedStyle(document.body).fontFamily; g.fillText((S.mode === "golf" ? "Tee " : "Start ") + S.tee, x1 + 4, c.chartArea.top + 26); g.restore(); },
+    afterDatasetsDraw(c){
+      const li = c.data.datasets.findIndex(d => d.isLightning); if (li < 0 || !c.isDatasetVisible(li) || !rows.length) return;
+      const xs = c.scales.x, g = c.ctx, top = c.chartArea.top, hgt = 14;
+      const half = rows.length > 1 ? (xs.getPixelForValue(1) - xs.getPixelForValue(0)) / 2 : 10;
+      g.save();
+      rows.forEach((r, i) => { if (!r.lr) return; const xc = xs.getPixelForValue(i);
+        g.fillStyle = LR_COL[r.lr]; g.globalAlpha = .9; g.fillRect(xc - half, top, half*2 + .5, hgt); g.globalAlpha = 1;
+        if (r.lr >= 2 && (per15 ? r.min % 60 === 0 : true)){ g.fillStyle = "#fff"; g.font = "700 11px sans-serif"; g.textAlign = "center"; g.fillText("⚡", xc, top + 11); } });
+      g.restore(); } };
+  if (chart) chart.destroy();
+  chart = new Chart($("#chart"), {
+    data:{ labels, datasets:[
+      {type:"bar", label:"Rain (mm)", data:rows.map(x => x.pr), backgroundColor:rain + "99", yAxisID:"yr", order:3, barPercentage:1, categoryPercentage:.9},
+      {type:"line", label:"Temp (°C)", data:rows.map(x => x.t), borderColor:sun, backgroundColor:sun, yAxisID:"yt", tension:.35, pointRadius:0, borderWidth:2.5, order:1},
+      {type:"line", label:"Feels like (°C)", data:rows.map(x => x.at), borderColor:sun, borderDash:[3,3], yAxisID:"yt", tension:.35, pointRadius:0, borderWidth:1.5, order:1},
+      {type:"line", label:"Wind (km/h)", data:rows.map(x => x.w), borderColor:green, yAxisID:"yw", tension:.35, pointRadius:0, borderWidth:2, order:2},
+      {type:"line", label:"Gust (km/h)", data:rows.map(x => x.g), borderColor:green, borderDash:[5,4], yAxisID:"yw", tension:.35, pointRadius:0, borderWidth:1.5, order:2},
+      {type:"bar", label:"⚡ Lightning risk", data:[], backgroundColor:"#e7892b", borderColor:"#e7892b", isLightning:true, yAxisID:"yr"},
+      ...(!per15 && rows.some(x => x.pp != null) ? [{type:"line", label:"Rain chance (%)", data:rows.map(x => x.pp), borderColor:rain, yAxisID:"yp", tension:.3, pointRadius:0, borderWidth:1.5, hidden:false, order:2}] : [])
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:"index", intersect:false},
+      plugins:{ legend:{labels:{color:ink, boxWidth:14, font:{size:11}}},
+        tooltip:{ filter: it => !it.dataset.isLightning, callbacks:{ footer: items => { const r = rows[items[0]?.dataIndex]; return r && r.lr ? "⚡ Lightning risk: " + LR_TXT[r.lr] : ""; } } } },
+      scales:{
+        x:{ticks:{color:muted, maxRotation:0, autoSkip:true, maxTicksLimit:per15?16:24}, grid:{color:line+"66"}},
+        yt:{position:"left", title:{display:true, text:"°C", color:muted}, ticks:{color:muted}, grid:{color:line+"66"}},
+        yw:{position:"right", title:{display:true, text:"km/h", color:muted}, ticks:{color:muted}, grid:{display:false}, beginAtZero:true},
+        yr:{display:false, beginAtZero:true, suggestedMax: per15 ? 2 : 6},
+        yp:{display:false, min:0, max:100}
+      }},
+    plugins:[bandPlugin]
+  });
+}
+
+/* table */
+function renderTable(){
+  const rows = rowsForDay(), w = roundWin(), D = S.D[S.sel], per15 = S.view === "m15";
+  const tbl = $("#tbl"), note = $("#tblNote");
+  if (per15 && !S.M.length){
+    tbl.innerHTML = ""; note.textContent = "15-minute data is not available for this location/model" + (S.m15err ? ` (${S.m15err})` : "") + ". Try the Best match model."; return;
+  }
+  const sr = D?.sunrise ? isoMin(D.sunrise) : 360, ss = D?.sunset ? isoMin(D.sunset) : 1110, step = per15 ? 15 : 60;
+  let h = `<thead><tr><th>Time</th>${S.mode === "golf" ? '<th class="c">Holes</th>' : ""}<th class="c">Sky</th><th class="c">Lightning</th><th>Temp</th><th>Feels</th>${per15?"":"<th>Rain %</th>"}<th>Rain mm</th><th>Wind</th><th>Gust</th><th>From</th>${per15?"":"<th>Cloud</th><th>UV</th>"}<th>Hum</th><th class="c">${S.mode === "golf" ? "Golf" : S.mode === "cricket" ? "Cricket" : "Score"}</th></tr></thead><tbody>`;
+  for (const x of rows){
+    const inR = x.min + step > w.a && x.min < w.b, night = x.min + step <= sr || x.min >= ss;
+    const st = stormLevel(x), holes = inR && S.mode === "golf" ? holesFor(x.min, x.min + step, w) : "";
+    const turnMark = inR && x.min <= w.a + w.len/2 && x.min + step > w.a + w.len/2 ? " title=\"The turn\"" : "";
+    h += `<tr class="${inR?"inround":""} ${night?"night":""}">
+      <td>${x.time.slice(11,16)}</td>
+      ${S.mode === "golf" ? `<td class="c holes"${turnMark}>${holes}</td>` : ""}
+      <td class="c" title="${esc(WMO[x.code]||"")}">${icon(x.code, !night, "ico sm")}</td>
+      <td class="c">${x.lr ? `<span class="chip" style="background:${LR_COL[x.lr]};${x.lr===1?"color:#14241a":""}">⚡ ${LR_TXT[x.lr]}</span>` : '<span class="muted">–</span>'}</td>
+      <td>${fmt(x.t)}°</td><td>${fmt(x.at)}°</td>
+      ${per15?"":`<td>${x.pp!=null?fmt(x.pp)+"%":"–"}</td>`}
+      <td>${x.pr ? fmt(x.pr,1) : "–"}</td>
+      <td>${fmt(x.w)}</td><td class="${(x.g??0)>35?"warnt":""}">${fmt(x.g)}</td>
+      <td>${arrow(x.wd)}${compass(x.wd)}</td>
+      ${per15?"":`<td>${fmt(x.cc)}%</td><td>${fmt(x.uv,0)}</td>`}
+      <td>${fmt(x.rh)}%</td>
+      <td class="c"><span class="chip s-${scoreCls(x.score)}">${x.score.toFixed(1)}</span></td></tr>`;
+  }
+  tbl.innerHTML = h + "</tbody>";
+  note.innerHTML = per15
+    ? "15-minute values come from Open-Meteo. Outside Europe and North America they are interpolated from the hourly models, so treat them as a smoothed hourly picture rather than nowcast-grade timing. Rain is mm per 15 minutes. Wind and gusts in km/h; \"From\" is the direction the wind blows from."
+    + " Lightning is taken from the hour it falls in."
+    : "Shaded rows are your round, with the holes you'll be playing in each hour (assumes an even pace over 18 holes). Lightning risk comes from the model's thunderstorm forecast, or from storm energy in the air (CAPE) combined with rain chance. Wind and gusts in km/h; \"From\" is the direction the wind blows from. Golf score: 10 is perfect, below 4 is a day for the 19th hole.";
+}
+
+/* ---------- map (lazy) ---------- */
+let mapObj = null, locMarker = null, courseLayer = null;
+function loadLeaflet(){
+  return new Promise((res, rej) => {
+    if (window.L) return res();
+    const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.appendChild(css);
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+function drawCourseMarkers(){
+  if (courseLayer) courseLayer.remove();
+  courseLayer = L.layerGroup();
+  for (const c of S.courses){
+    L.circleMarker([c.lat, c.lon], {radius:5, color:tok("--green"), weight:1.5, fillColor:tok("--green"), fillOpacity:.55})
+      .bindTooltip(c.n).on("click", ev => { L.DomEvent.stop(ev); setLoc({...c, kind:"course"}); }).addTo(courseLayer);
+  }
+  courseLayer.addTo(mapObj); $("#mapCount").textContent = S.courses.length + " courses";
+}
+async function toggleMap(){
+  const card = $("#mapCard"); card.hidden = !card.hidden; if (card.hidden) return;
+  try{ await loadLeaflet(); }catch(e){ $("#map").innerHTML = '<div class="muted" style="padding:20px">Map library could not load (offline?).</div>'; return; }
+  if (!mapObj){
+    mapObj = L.map("map").setView([S.loc.lat, S.loc.lon], 9);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {maxZoom:18, subdomains:"abcd",
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'}).addTo(mapObj);
+    mapObj.on("click", e => setLoc({n:`Pin at ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`, r:"", lat:+e.latlng.lat.toFixed(5), lon:+e.latlng.lng.toFixed(5), kind:"pin"}));
+    drawCourseMarkers();
+  }
+  setTimeout(() => { mapObj.invalidateSize(); placeLocMarker(); }, 50);
+}
+function placeLocMarker(){
+  if (!mapObj) return;
+  if (locMarker) locMarker.remove();
+  locMarker = L.marker([S.loc.lat, S.loc.lon]).addTo(mapObj).bindTooltip(S.loc.n);
+  mapObj.setView([S.loc.lat, S.loc.lon], Math.max(mapObj.getZoom(), 10));
+}
+
+/* ---------- animated forecast map (Windy embed) + external links ---------- */
+S.ov = "rain"; let windyKey = "";
+function updateWindy(force){
+  const la = S.loc.lat.toFixed(3), lo = S.loc.lon.toFixed(3), key = la + "," + lo + "," + S.ov;
+  $("#lnkWindy").href = `https://www.windy.com/-Rain-thunder-rain?rain,${la},${lo},10`;
+  $("#lnkVentusky").href = `https://www.ventusky.com/?p=${la};${lo};9&l=rain-3h`;
+  $("#lnkZoom").href = `https://zoom.earth/maps/satellite/#view=${la},${lo},9z`;
+  $("#lnkRadar").href = `https://www.rainviewer.com/map.html?loc=${la},${lo},9`;
+  if (key === windyKey && !force) return; windyKey = key;
+  const p = new URLSearchParams({type:"map", location:"coordinates", metricRain:"mm", metricTemp:"°C", metricWind:"km/h", zoom:"9",
+    overlay:S.ov, product:"ecmwf", level:"surface", lat:la, lon:lo, detailLat:la, detailLon:lo, marker:"true", message:"true"});
+  $("#windy").src = "https://embed.windy.com/embed.html?" + p.toString();
+}
+
+
+/* ================= share card ================= */
+const TX = {
+ en:{titles:{golf:"Golf Weather", cricket:"Cricket Weather", general:"Weather Forecast"}, scores:{golf:"golf score", cricket:"cricket score", general:"weather score"},
+   stormG:"Thunderstorms forecast. Play stops when lightning is near: take shelter, not under trees.",
+   rainInt:(a,b,mm)=>`Rain interruptions likely around ${a}–${b} (${mm} mm). Expect lost overs.`, dew:t=>`Dew likely after dark (from ≈${t}): wet ball, harder for bowlers; batting second favoured.`,
+   flood:ss=>`Play runs past sunset (${ss}): floodlights needed.`, endDark:ss=>`Ends after sunset (${ss}).`, uvxG:u=>`UV index ${u}: sunscreen, reapply every 2 hours.`, startW:"start", endW:"end",
+   title:"Golf Weather", days:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], mon:MON, tee:"tee off", fin:"finish", score:"golf score",
+   verd:["Poor","Playable","Good","Perfect"], temp:"Temperature", feels:"Feels like", rain:"Rain", wind:"Wind", gust:"gusts", uv:"UV", hbh:"Hour by hour",
+   holes:"Holes", pack:"Pack", maps:"Hourly rain & cloud map", mapnote:"Blue→red = rain intensity (mm/h), grey = cloud. Flag = the venue.", from:"from",
+   none:"No weather concerns for this round.", nofc:"No forecast yet for this date (forecasts go 16 days ahead).",
+   ltlow:"Slight lightning risk in the area. Keep an eye on the sky.", lt:"Lightning", lrt:["none","low","moderate","high"],
+   lth:"Lightning during the round", lthM:{golf:"Lightning during the round", cricket:"Lightning during the match", general:"Lightning during the event"}, ltAt:"at course", ltNear:"nearest storm cell", ltNone:"No storm risk within 50 km",
+   ltHere:"over the venue", ltOver:hh=>`Storm risk over the venue at ${hh}: stop play and take shelter when it arrives`,
+   ltHead:(d,dir,hh,b)=>`Closest storm risk ${Math.round(d)} km ${dir} at ${hh}: ${{strike:"within strike range, stop play if it builds", close:"close, watch the sky and know the shelters", area:"in the area"}[b]}`,
+   ltNoneH:"none within 50 km", ltNote:"Storm-risk cells from the forecast model (~12 km grid), not live strikes. Rings: 10 km and 20 km from the venue.",
+   storm:"Thunderstorms forecast. Listen for the siren and leave the course when it sounds.", unstable:"Unstable air: storms can build quickly.",
+   wet:(mm,pp)=>`Wet round: about ${mm} mm of rain${pp}.`, some:(mm,pp)=>`Some rain possible (${mm} mm${pp}). Pack the umbrella.`, ppx:p=>`, up to ${p}% chance`,
+   gstrong:g=>`Strong gusts up to ${g} km/h.`, gusty:g=>`Gusty: up to ${g} km/h.`, hot:t=>`Hot: feels like ${t}°. Take extra water and a hat.`,
+   cold:t=>`Cold: feels like ${t}° at its coolest. Bring a layer.`, uvx:u=>`UV index ${u}: sunscreen before the 1st and again at the turn.`,
+   dark:(ss,lt)=>`You finish after sunset (${ss}). Tee off by ${lt}.`,
+   tips:{umb:"☂️ umbrella", rainsuit:"🧥 rain suit", layer:"🧥 warm layer", sun:"🧴 sunscreen", hat:"🧢 hat", water:"💧 extra water", gloves:"🧤 rain gloves"},
+   src:"Forecast: Open-Meteo", comp:DIRS},
+ af:{titles:{golf:"Gholf Weerberig", cricket:"Krieket Weerberig", general:"Weerberig"}, scores:{golf:"gholf-telling", cricket:"krieket-telling", general:"weer-telling"},
+   stormG:"Donderstorms voorspel. Spel word gestaak as weerlig naby is: skuil, maar nie onder bome nie.",
+   rainInt:(a,b,mm)=>`Reënonderbrekings waarskynlik rondom ${a}–${b} (${mm} mm). Verwag verlore boulbeurte.`, dew:t=>`Dou waarskynlik ná donker (vanaf ±${t}): nat bal, moeiliker vir boulers; tweede kolf word bevoordeel.`,
+   flood:ss=>`Spel duur ná sononder (${ss}): spreiligte nodig.`, endDark:ss=>`Eindig ná sononder (${ss}).`, uvxG:u=>`UV-indeks ${u}: smeer sonroom en herhaal elke 2 uur.`, startW:"begin", endW:"einde",
+   title:"Gholf Weerberig", days:["Sondag","Maandag","Dinsdag","Woensdag","Donderdag","Vrydag","Saterdag"], mon:["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Des"],
+   tee:"afslaan", fin:"klaar", score:"gholf-telling", verd:["Swak","Speelbaar","Goed","Perfek"], temp:"Temperatuur", feels:"Voel soos", rain:"Reën", wind:"Wind", gust:"rukwinde", uv:"UV",
+   hbh:"Uur vir uur", holes:"Putjies", pack:"Pak in", maps:"Uurlikse reën- en wolkkaart", mapnote:"Blou→rooi = reënsterkte (mm/h), grys = wolke. Vlag = die terrein.", from:"uit die",
+   none:"Geen weerprobleme vir hierdie rondte nie.", nofc:"Nog geen voorspelling vir hierdie datum nie (voorspellings strek 16 dae vooruit).",
+   ltlow:"Effense kans op weerlig in die omgewing. Hou die lug dop.", lt:"Weerlig", lrt:["geen","laag","matig","hoog"],
+   lth:"Weerlig tydens die rondte", lthM:{golf:"Weerlig tydens die rondte", cricket:"Weerlig tydens die wedstryd", general:"Weerlig tydens die geleentheid"}, ltAt:"by die baan", ltNear:"naaste stormsel", ltNone:"Geen stormrisiko binne 50 km nie",
+   ltHere:"oor die terrein", ltOver:hh=>`Stormrisiko oor die terrein om ${hh}: staak spel en skuil wanneer dit aankom`,
+   ltHead:(d,dir,hh,b)=>`Naaste stormrisiko ${Math.round(d)} km ${dir} om ${hh}: ${{strike:"binne trefafstand, staak spel as dit opbou", close:"naby, hou die lug dop en ken die skuilings", area:"in die omgewing"}[b]}`,
+   ltNoneH:"geen binne 50 km nie", ltNote:"Stormrisiko-selle uit die voorspellingsmodel (~12 km rooster), nie lewendige weerligslae nie. Ringe: 10 km en 20 km van die terrein.",
+   storm:"Donderstorms voorspel. Luister vir die sirene en verlaat die baan wanneer dit afgaan.", unstable:"Onstabiele lug: storms kan vinnig opbou.",
+   wet:(mm,pp)=>`Nat rondte: sowat ${mm} mm reën${pp}.`, some:(mm,pp)=>`Moontlik bietjie reën (${mm} mm${pp}). Vat die sambreel.`, ppx:p=>`, tot ${p}% kans`,
+   gstrong:g=>`Sterk rukwinde tot ${g} km/h.`, gusty:g=>`Winderig: rukwinde tot ${g} km/h.`, hot:t=>`Warm: voel soos ${t}°. Vat ekstra water en 'n hoed.`,
+   cold:t=>`Koud: voel soos ${t}° op sy koelste. Bring 'n ekstra laag.`, uvx:u=>`UV-indeks ${u}: smeer sonroom voor die eerste afslag en weer by die draai.`,
+   dark:(ss,lt)=>`Julle is eers ná sononder klaar (${ss}). Slaan af teen ${lt}.`,
+   tips:{umb:"☂️ sambreel", rainsuit:"🧥 reënpak", layer:"🧥 warm baadjie", sun:"🧴 sonroom", hat:"🧢 hoed", water:"💧 ekstra water", gloves:"🧤 reënhandskoene"},
+   src:"Voorspelling: Open-Meteo", comp:["N","NNO","NO","ONO","O","OSO","SO","SSO","S","SSW","SW","WSW","W","WNW","NW","NNW"]}
+};
+const tcomp = (d, L) => d == null ? "–" : L.comp[Math.round(((d % 360)+360)%360 / 22.5) % 16];
+function issuesFor(st, D, w, lang, mode = "golf"){
+  const L = TX[lang], out = [], pp = st.ppmax != null ? L.ppx(Math.round(st.ppmax)) : "";
+  if (st.storm === 2) out.push(["poor", mode === "golf" ? L.storm : L.stormG]); else if (st.storm === 1) out.push(["fair", L.unstable]); else if (st.lr === 1) out.push(["fair", L.ltlow]);
+  if (mode === "cricket" && st.rainHrs.length){ const a = Math.min(...st.rainHrs), b = Math.max(...st.rainHrs) + 60; out.push([st.rain >= 2 ? "poor" : "fair", L.rainInt(hhmm(Math.max(a, w.a)), hhmm(Math.min(b, w.b)), st.rain.toFixed(1))]); }
+  else if (st.rain >= 2) out.push(["poor", L.wet(st.rain.toFixed(1), pp)]);
+  else if (st.rain >= 0.3 || (st.ppmax ?? 0) >= 50) out.push(["fair", L.some(st.rain.toFixed(1), pp)]);
+  if (st.gmax > 40) out.push(["poor", L.gstrong(Math.round(st.gmax))]); else if (st.gmax > 30) out.push(["fair", L.gusty(Math.round(st.gmax))]);
+  if (st.atmax >= 32) out.push(["fair", L.hot(Math.round(st.atmax))]);
+  if (st.atmin <= 10) out.push(["fair", L.cold(Math.round(st.atmin))]);
+  if (st.uv >= 8) out.push(["fair", mode === "golf" ? L.uvx(Math.round(st.uv)) : L.uvxG(Math.round(st.uv))]);
+  if (mode === "cricket" && st.dewFrom != null) out.push(["fair", L.dew(hhmm(st.dewFrom))]);
+  if (D.sunset && w.b > isoMin(D.sunset) && w.len < 1440){
+    if (mode === "golf") out.push(["poor", L.dark(D.sunset.slice(11,16), hhmm(isoMin(D.sunset) - w.len))]);
+    else if (mode === "cricket") out.push(["fair", L.flood(D.sunset.slice(11,16))]);
+    else out.push(["fair", L.endDark(D.sunset.slice(11,16))]); }
+  if (!out.length) out.push(["good", L.none]);
+  return out;
+}
+function packTips(st, lang){
+  const T = TX[lang].tips, t = [];
+  if (st.rain >= 2 || st.storm) t.push(T.rainsuit, T.gloves);
+  if (st.rain >= 0.3 || (st.ppmax ?? 0) >= 40) t.push(T.umb);
+  if (st.atmin <= 12 && !t.includes(T.rainsuit)) t.push(T.layer);
+  if (st.uv >= 6) t.push(T.sun, T.hat);
+  if (st.atmax >= 28) t.push(T.water);
+  return [...new Set(t)];
+}
+
+/* trip (rounds on the card) */
+S.trip = LS.get("trip", []);
+function renderTrip(){
+  const box = $("#tripList");
+  if (!S.trip.length){ box.innerHTML = '<div class="muted" style="font-size:.88rem">No rounds added yet: the card will use the round shown above. Use "Add round to share card" to build a multi-day tour.</div>'; return; }
+  box.innerHTML = S.trip.map((r,i) => { const p = dParts(r.date); return `<div class="tripi"><span>${MODE_TXT[r.mode || "golf"].emoji} <b>${p.dn} ${p.dd}</b> · ${r.len >= 24 ? "" : r.tee}${(r.mode || "golf") !== "golf" ? (r.len >= 24 ? " full day" : "–" + hhmm(toMin(r.tee) + r.len*60)) : (r.startHole && r.startHole !== 1 ? " (hole " + r.startHole + ")" : "")} · ${esc(r.loc.n)}</span><button data-rm="${i}" aria-label="Remove">✕</button></div>`; }).join("");
+}
+function currentRound(){ return {loc:{n:S.loc.n, r:S.loc.r, lat:S.loc.lat, lon:S.loc.lon, kind:S.loc.kind}, date:S.D[S.sel]?.date, tee:S.tee, len:S.len, mode:S.mode, startHole:S.startHole || 1}; }
+
+/* forecast for any round (cached) */
+async function fcFor(loc){
+  const key = favKey(loc) + "|" + S.model, c = S.cache[key];
+  if (c && Date.now() - c.ts < 20*60e3) return c.fc;
+  const fc = await getJSON(fcUrl({hourly:HV, daily:DV}, loc));
+  S.cache[key] = {ts: Date.now(), fc, m15: c?.m15 ?? null, m15err: c?.m15err ?? null};
+  return fc;
+}
+
+/* rain/cloud grid around a course: N×N model points, one hourly series each */
+const GRID_N = 9, GRID_DLAT = 0.45, GRID_DLON = 0.5;
+async function rainGrid(loc, date){
+  const lats = [], lons = [];
+  for (let i = 0; i < GRID_N; i++) for (let j = 0; j < GRID_N; j++){
+    lats.push((loc.lat + GRID_DLAT - i * 2*GRID_DLAT/(GRID_N-1)).toFixed(4));
+    lons.push((loc.lon - GRID_DLON + j * 2*GRID_DLON/(GRID_N-1)).toFixed(4));
+  }
+  const p = new URLSearchParams({latitude:lats.join(","), longitude:lons.join(","), hourly:"precipitation,cloud_cover,weather_code,cape,precipitation_probability", timezone:"auto", start_date:date, end_date:date});
+  if (S.model !== "best_match") p.set("models", S.model);
+  let j = await getJSON("https://api.open-meteo.com/v1/forecast?" + p.toString());
+  if (!Array.isArray(j)) j = [j];
+  return {lat0: loc.lat + GRID_DLAT, lat1: loc.lat - GRID_DLAT, lon0: loc.lon - GRID_DLON, lon1: loc.lon + GRID_DLON,
+    times: j[0].hourly.time, pr: j.map(r => r.hourly.precipitation), cc: j.map(r => r.hourly.cloud_cover),
+    wc: j.map(r => r.hourly.weather_code || []), cp: j.map(r => r.hourly.cape || []), pp: j.map(r => r.hourly.precipitation_probability || []),
+    lats: lats.map(Number), lons: lons.map(Number), clat: loc.lat, clon: loc.lon};
+}
+const tileCache = {};
+function loadTile(z, x, y){
+  const key = z + "/" + x + "/" + y; if (tileCache[key]) return tileCache[key];
+  return tileCache[key] = new Promise(res => { const im = new Image(); im.crossOrigin = "anonymous";
+    const t = setTimeout(() => res(null), 9000);
+    im.onload = () => { clearTimeout(t); res(im); }; im.onerror = () => { clearTimeout(t); res(null); };
+    im.src = `https://${"abcd"[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`; });
+}
+const lon2x = (lon, z) => (lon + 180) / 360 * 256 * 2**z;
+const lat2y = (lat, z) => { const s = Math.sin(lat * Math.PI/180); return (0.5 - Math.log((1+s)/(1-s)) / (4*Math.PI)) * 256 * 2**z; };
+const x2lon = (x, z) => x / (256 * 2**z) * 360 - 180;
+const y2lat = (y, z) => Math.atan(Math.sinh(Math.PI * (1 - 2*y/(256 * 2**z)))) * 180 / Math.PI;
+const RAMP = [[0.1,[140,200,255,.45]],[0.5,[70,150,240,.62]],[1.5,[40,175,90,.72]],[4,[245,205,40,.8]],[8,[240,125,30,.86]],[15,[215,40,40,.9]]];
+function rainRGBA(p){
+  if (p < RAMP[0][0]) return null;
+  for (let i = 1; i < RAMP.length; i++) if (p < RAMP[i][0]){ const [a,ca] = RAMP[i-1], [b,cb] = RAMP[i], f = (p-a)/(b-a); return ca.map((v,k) => v + (cb[k]-v)*f); }
+  return RAMP[RAMP.length-1][1];
+}
+/* per hour of the round: lightning risk at the course and the nearest storm cell (moderate/high) in the grid */
+function bearing(la1, lo1, la2, lo2){ const y = (lo2-lo1)*Math.cos((la1+la2)/2*Math.PI/180), x = la2-la1; return (Math.atan2(y, x)*180/Math.PI + 360) % 360; }
+function cellRisk(g, k, idx){ return lightningRisk({code: g.wc[k]?.[idx], cape: g.cp[k]?.[idx], pp: g.pp[k]?.[idx]}); }
+function lightningNear(g, w){
+  const out = [], ctr = Math.floor(GRID_N*GRID_N/2);
+  for (let h = Math.floor(w.a/60); h <= Math.ceil(w.b/60) - 1; h++){
+    const idx = g.times.findIndex(t => +t.slice(11,13) === h); if (idx < 0) continue;
+    let near = null, cells = [];
+    for (let k = 0; k < g.lats.length; k++){
+      const r = cellRisk(g, k, idx); if (r < 2) continue;
+      const d = dist(g.clat, g.clon, g.lats[k], g.lons[k]); if (d > 50) continue; cells.push({k, r, d});
+      if (!near || d < near.d - 0.5 || (Math.abs(d - near.d) <= 0.5 && r > near.r)) near = {d, r, dir: bearing(g.clat, g.clon, g.lats[k], g.lons[k])};
+    }
+    out.push({h, idx, course: cellRisk(g, ctr, idx), near, cells});
+  }
+  return out;
+}
+function ltBand(d){ return d == null ? "none" : d <= 10 ? "strike" : d <= 20 ? "close" : "area"; }
+const LTB_COL = {strike:"#d63c2f", close:"#e7892b", area:"#e0c341", none:"#2e8a3e"};
+async function rainFrames(loc, w, date, gIn, lt){
+  const g = gIn || await rainGrid(loc, date), Z = 9;
+  const px0 = lon2x(g.lon0, Z), px1 = lon2x(g.lon1, Z), py0 = lat2y(g.lat0, Z), py1 = lat2y(g.lat1, Z);
+  const MW = 360, MH = Math.round(MW * (py1 - py0) / (px1 - px0)), k = MW / (px1 - px0);
+  const base = document.createElement("canvas"); base.width = MW; base.height = MH; const b = base.getContext("2d");
+  b.fillStyle = "#e9ede6"; b.fillRect(0, 0, MW, MH);
+  const jobs = [];
+  for (let tx = Math.floor(px0/256); tx <= Math.floor(px1/256); tx++) for (let ty = Math.floor(py0/256); ty <= Math.floor(py1/256); ty++)
+    jobs.push(loadTile(Z, tx, ty).then(im => { if (im) b.drawImage(im, (tx*256 - px0)*k, (ty*256 - py0)*k, 256*k, 256*k); }));
+  await Promise.all(jobs);
+  let hrs = []; for (let h = Math.floor(w.a/60); h <= Math.ceil(w.b/60) - 1; h++) hrs.push(h);
+  if (hrs.length > 6){ const st = (hrs.length - 1) / 5; hrs = [0,1,2,3,4,5].map(i => hrs[Math.round(i*st)]); }
+  const N = GRID_N, G = 56;
+  const val = (arr, idx, fi, fj) => { const i0 = clamp(Math.floor(fi),0,N-1), j0 = clamp(Math.floor(fj),0,N-1), i1 = Math.min(i0+1,N-1), j1 = Math.min(j0+1,N-1), di = fi-i0, dj = fj-j0;
+    const v = (i,j) => arr[i*N+j]?.[idx] ?? 0;
+    return v(i0,j0)*(1-di)*(1-dj) + v(i0,j1)*(1-di)*dj + v(i1,j0)*di*(1-dj) + v(i1,j1)*di*dj; };
+  const frames = [];
+  for (const h of hrs){
+    const idx = g.times.findIndex(t => +t.slice(11,13) === h); if (idx < 0) continue;
+    const lo = document.createElement("canvas"); lo.width = G; lo.height = Math.round(G*MH/MW); const lg = lo.getContext("2d"), img = lg.createImageData(lo.width, lo.height);
+    let maxp = 0;
+    for (let y = 0; y < lo.height; y++) for (let x = 0; x < G; x++){
+      const lon = x2lon(px0 + (x+.5)/G*MW/k, Z), lat = y2lat(py0 + (y+.5)/lo.height*MH/k, Z);
+      const fi = (g.lat0 - lat)/(g.lat0 - g.lat1)*(N-1), fj = (lon - g.lon0)/(g.lon1 - g.lon0)*(N-1);
+      const p = val(g.pr, idx, fi, fj), c = val(g.cc, idx, fi, fj); maxp = Math.max(maxp, p);
+      let col = rainRGBA(p); if (!col && c > 40) col = [95,105,115, (c-40)/60*0.38];
+      const o = (y*G + x)*4; if (col){ img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2]; img.data[o+3] = Math.round(col[3]*255); }
+    }
+    lg.putImageData(img, 0, 0);
+    const f = document.createElement("canvas"); f.width = MW; f.height = MH; const fg = f.getContext("2d");
+    fg.drawImage(base, 0, 0); fg.imageSmoothingEnabled = true; fg.imageSmoothingQuality = "high"; fg.drawImage(lo, 0, 0, MW, MH);
+    /* 10 & 20 km rings and storm cells */
+    const ccx = (lon2x(g.clon, Z) - px0)*k, ccy = (lat2y(g.clat, Z) - py0)*k;
+    fg.save(); fg.setLineDash([5,4]); fg.lineWidth = 1.5;
+    for (const km of [10, 20]){ const rpx = (lat2y(g.clat - km/111.2, Z) - lat2y(g.clat, Z))*k;
+      fg.strokeStyle = km === 10 ? "rgba(214,60,47,.75)" : "rgba(231,137,43,.7)"; fg.beginPath(); fg.arc(ccx, ccy, rpx, 0, Math.PI*2); fg.stroke();
+      fg.setLineDash([]); fg.font = '600 11px "Source Sans 3",sans-serif'; fg.fillStyle = fg.strokeStyle; fg.fillText(km + " km", ccx + rpx*0.72 + 3, ccy - rpx*0.72 - 3); fg.setLineDash([5,4]); }
+    fg.restore();
+    const lh = lt ? lt.find(x => x.h === h) : null;
+    if (lh) for (const c of lh.cells){ const x = (lon2x(g.lons[c.k], Z) - px0)*k, y = (lat2y(g.lats[c.k], Z) - py0)*k;
+      fg.fillStyle = LR_COL[c.r]; fg.beginPath(); fg.arc(x, y, 17, 0, Math.PI*2); fg.fill(); fg.strokeStyle = "#fff"; fg.lineWidth = 2.5; fg.stroke();
+      fg.fillStyle = "#fff"; fg.font = '700 20px sans-serif'; fg.textAlign = "center"; fg.fillText("⚡", x, y + 7); fg.textAlign = "left"; }
+    const cx = ccx, cy = ccy;                                  /* flag on the course */
+    fg.strokeStyle = "#14241a"; fg.lineWidth = 3; fg.beginPath(); fg.moveTo(cx, cy); fg.lineTo(cx, cy-28); fg.stroke();
+    fg.fillStyle = "#e5483b"; fg.beginPath(); fg.moveTo(cx+1.5, cy-28); fg.lineTo(cx+20, cy-22); fg.lineTo(cx+1.5, cy-16); fg.fill();
+    fg.fillStyle = "#14241a"; fg.beginPath(); fg.ellipse(cx, cy, 6, 2.5, 0, 0, 7); fg.fill();
+    const lab = String(h).padStart(2,"0") + ":00";
+    fg.font = '700 22px "Barlow Condensed","Arial Narrow",sans-serif'; const tw = fg.measureText(lab).width;
+    fg.fillStyle = "rgba(20,36,26,.85)"; roundRect(fg, 8, 8, tw + 16, 30, 6); fg.fill(); fg.fillStyle = "#fff"; fg.fillText(lab, 16, 31);
+    if (maxp >= 0.1){ const m = maxp.toFixed(1) + " mm"; fg.font = '600 15px "Source Sans 3",sans-serif'; const mw = fg.measureText(m).width;
+      fg.fillStyle = "rgba(255,255,255,.85)"; roundRect(fg, MW - mw - 22, 8, mw + 14, 26, 6); fg.fill(); fg.fillStyle = "#1d4f8a"; fg.fillText(m, MW - mw - 15, 27); }
+    fg.strokeStyle = "rgba(20,36,26,.35)"; fg.lineWidth = 2; fg.strokeRect(1, 1, MW-2, MH-2);
+    frames.push({h, canvas:f});
+  }
+  return frames;
+}
+
+/* canvas drawing helpers */
+function roundRect(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r); g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath(); }
+function circ(g, x, y, r, col){ g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill(); }
+function cloudShape(g, x, y, s, col){
+  if (CSN.ink){ const o = 2.6; circ(g, x-14*s, y+4*s, 11*s+o, CSN.ink); circ(g, x, y-4*s, 16*s+o, CSN.ink); circ(g, x+16*s, y+3*s, 12*s+o, CSN.ink); g.fillStyle = CSN.ink; roundRect(g, x-25*s-o, y+2*s-o, 53*s+2*o, 14*s+2*o, 7*s+o); g.fill(); }
+  circ(g, x-14*s, y+4*s, 11*s, col); circ(g, x, y-4*s, 16*s, col); circ(g, x+16*s, y+3*s, 12*s, col); g.fillStyle = col; roundRect(g, x-25*s, y+2*s, 53*s, 14*s, 7*s); g.fill(); }
+function sunShape(g, x, y, r){
+  g.strokeStyle = "#f2b51f"; g.lineWidth = Math.max(2, r/6); g.lineCap = "round";
+  for (let i = 0; i < 8; i++){ const a = i*Math.PI/4; g.beginPath(); g.moveTo(x+Math.cos(a)*(r+r*.3), y+Math.sin(a)*(r+r*.3)); g.lineTo(x+Math.cos(a)*(r+r*.65), y+Math.sin(a)*(r+r*.65)); g.stroke(); }
+  circ(g, x, y, r, "#ffc93c");
+  if (CSN.ink){ g.strokeStyle = CSN.ink; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.stroke(); }
+}
+function cIcon(g, code, cx, cy, s, day){
+  const k = s/40;
+  if (code == null) return;
+  if (code <= 1){ if (day) sunShape(g, cx, cy, 11*k); else { circ(g, cx, cy, 11*k, "#9aa7a0"); circ(g, cx+6*k, cy-4*k, 10*k, "#fbfcf8"); } return; }
+  if (code === 2){ if (day) sunShape(g, cx-6*k, cy-6*k, 8*k); cloudShape(g, cx+3*k, cy+3*k, .55*k, "#a7b2ab"); return; }
+  if (code === 45 || code === 48){ g.strokeStyle = "#9aa7a0"; g.lineWidth = 3*k; g.lineCap = "round"; for (let i = -1; i <= 2; i++){ g.beginPath(); g.moveTo(cx-14*k, cy+i*7*k); g.lineTo(cx+14*k, cy+i*7*k); g.stroke(); } return; }
+  const dark = code >= 95 ? "#6b7682" : code >= 51 ? "#8f9ba5" : "#a7b2ab";
+  cloudShape(g, cx, cy-4*k, .6*k, dark);
+  if (code >= 95){ g.fillStyle = "#ffc93c"; g.beginPath(); g.moveTo(cx+2*k, cy+4*k); g.lineTo(cx-5*k, cy+14*k); g.lineTo(cx, cy+14*k); g.lineTo(cx-3*k, cy+21*k); g.lineTo(cx+7*k, cy+10*k); g.lineTo(cx+2*k, cy+10*k); g.closePath(); g.fill(); return; }
+  if (code >= 51){ g.strokeStyle = "#2f7fd1"; g.lineWidth = 2.4*k; g.lineCap = "round"; const n = [55,63,65,81,82].includes(code) ? 3 : 2;
+    for (let i = 0; i < n; i++){ const x = cx - (n-1)*4.5*k + i*9*k; g.beginPath(); g.moveTo(x, cy+8*k); g.lineTo(x-3*k, cy+16*k); g.stroke(); } }
+}
+function windArrow(g, x, y, d, s, col){
+  if (d == null) return; g.save(); g.translate(x, y); g.rotate((d+180)*Math.PI/180); g.fillStyle = col;
+  g.beginPath(); g.moveTo(0, -s); g.lineTo(s*.6, s*.5); g.lineTo(0, s*.2); g.lineTo(-s*.6, s*.5); g.closePath(); g.fill(); g.restore();
+}
+function wrap(g, text, x, y, maxW, lh, draw = true){
+  const words = text.split(" "); let line = "", n = 0;
+  for (const w of words){ const t = line ? line + " " + w : w;
+    if (g.measureText(t).width > maxW && line){ if (draw) g.fillText(line, x, y + n*lh); n++; line = w; } else line = t; }
+  if (line){ if (draw) g.fillText(line, x, y + n*lh); n++; }
+  return n * lh;
+}
+function drawScene(g, x, y, w, h, code, tTxt, mode = "golf"){
+  const cat = code >= 95 ? "storm" : (code >= 51 && code < 95) ? "rain" : (code === 45 || code === 48) ? "fog" : code === 3 ? "cloud" : code === 2 ? "partly" : "clear";
+  const sky = {clear:["#7cc8f7","#d9f1ff"], partly:["#93cdf0","#e2f2fb"], cloud:["#aeb9c2","#e4e9ec"], fog:["#c5ccd0","#eef1f2"], rain:["#86939f","#c8d0d6"], storm:["#4f5c69","#97a3ae"]}[cat];
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1]); g.fillStyle = gr; g.fillRect(x, y, w, h);
+  if (cat === "clear" || cat === "partly") sunShape(g, x + w - 70, y + 48, 24);
+  if (cat === "partly"){ cloudShape(g, x + w - 120, y + 62, 1.1, "#ffffff"); cloudShape(g, x + 120, y + 40, .8, "#f4f8fb"); }
+  if (cat === "cloud"){ cloudShape(g, x + 110, y + 42, 1.2, "#e9eef1"); cloudShape(g, x + w - 120, y + 50, 1.4, "#d9e0e5"); cloudShape(g, x + w/2, y + 30, 1, "#f1f4f6"); }
+  if (cat === "rain" || cat === "storm"){
+    const c = cat === "storm" ? ["#3e4a55","#56636f"] : ["#77838e","#8d99a3"];
+    cloudShape(g, x + 100, y + 40, 1.4, c[1]); cloudShape(g, x + w/2 + 10, y + 30, 1.6, c[0]); cloudShape(g, x + w - 100, y + 44, 1.3, c[1]);
+    g.strokeStyle = "rgba(47,127,209,.75)"; g.lineWidth = 2.2; g.lineCap = "round";
+    for (let i = 0; i < 46; i++){ const rx = x + ((i*67) % w), ry = y + 62 + ((i*37) % (h - 70)); g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx - 5, ry + 13); g.stroke(); }
+    if (cat === "storm"){ g.fillStyle = "#ffd23f"; const bx = x + w/2 + 30, by = y + 52;
+      g.beginPath(); g.moveTo(bx, by); g.lineTo(bx - 22, by + 46); g.lineTo(bx - 6, by + 46); g.lineTo(bx - 18, by + 84); g.lineTo(bx + 16, by + 32); g.lineTo(bx, by + 32); g.closePath(); g.fill(); }
+  }
+  if (cat === "fog"){ g.fillStyle = "rgba(255,255,255,.55)"; for (let i = 0; i < 5; i++) { roundRect(g, x - 20 + (i%2)*60, y + 30 + i*22, w * .8, 12, 6); g.fill(); } }
+  /* hills, fairway, green, flag, bunker */
+  const inkS = () => { if (CSN.ink){ g.strokeStyle = CSN.ink; g.lineWidth = 2.5; g.stroke(); } };
+  g.fillStyle = "#8cc77a"; g.beginPath(); g.moveTo(x, y + h*.62); g.bezierCurveTo(x + w*.25, y + h*.48, x + w*.55, y + h*.72, x + w, y + h*.56); g.lineTo(x + w, y + h + 4); g.lineTo(x, y + h + 4); g.closePath(); g.fill(); inkS();
+  g.fillStyle = "#5fae4e"; g.beginPath(); g.moveTo(x, y + h*.8); g.bezierCurveTo(x + w*.3, y + h*.66, x + w*.6, y + h*.9, x + w, y + h*.74); g.lineTo(x + w, y + h + 4); g.lineTo(x, y + h + 4); g.closePath(); g.fill(); inkS();
+  if (mode === "golf"){
+  g.fillStyle = "#7fcf6a"; g.beginPath(); g.ellipse(x + w*.7, y + h*.8, 62, 15, 0, 0, 7); g.fill(); inkS();
+  g.fillStyle = "#efd9a0"; g.beginPath(); g.ellipse(x + w*.5, y + h*.88, 34, 8, 0, 0, 7); g.fill(); inkS();
+  g.strokeStyle = "#fbfcf8"; g.lineWidth = 3; g.beginPath(); g.moveTo(x + w*.7, y + h*.8); g.lineTo(x + w*.7, y + h*.4); g.stroke();
+  g.fillStyle = "#e5483b"; g.beginPath(); g.moveTo(x + w*.7 + 1, y + h*.4); g.lineTo(x + w*.7 + 36, y + h*.4 + 11); g.lineTo(x + w*.7 + 1, y + h*.4 + 22); g.closePath(); g.fill(); inkS();
+  g.fillStyle = "#14241a"; g.beginPath(); g.ellipse(x + w*.7, y + h*.8, 6, 2.2, 0, 0, 7); g.fill();
+  } else if (mode === "cricket"){
+    /* pitch in perspective with stumps at both ends */
+    const cx = x + w*.62, top = y + h*.6, bot = y + h*.95;
+    g.fillStyle = "#e3cf96"; g.beginPath(); g.moveTo(cx - 14, top); g.lineTo(cx + 14, top); g.lineTo(cx + 40, bot); g.lineTo(cx - 40, bot); g.closePath(); g.fill();
+    g.strokeStyle = "#fbfcf8"; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - 18, top + 8); g.lineTo(cx + 18, top + 8); g.moveTo(cx - 36, bot - 10); g.lineTo(cx + 36, bot - 10); g.stroke();
+    const stumps = (sx, sy, sh, sp, lw) => { g.strokeStyle = "#f4e3c1"; g.lineWidth = lw; for (const d of [-sp, 0, sp]){ g.beginPath(); g.moveTo(sx + d, sy); g.lineTo(sx + d, sy - sh); g.stroke(); }
+      g.strokeStyle = "#c8372d"; g.lineWidth = lw*.8; g.beginPath(); g.moveTo(sx - sp, sy - sh); g.lineTo(sx + sp, sy - sh); g.stroke(); };
+    stumps(cx, top + 6, 16, 4, 2.2); stumps(cx, bot - 8, 34, 8, 3.5);
+    circ(g, cx + 70, bot - 30, 6, "#c8372d"); g.strokeStyle = "#fbfcf8"; g.lineWidth = 1; g.beginPath(); g.arc(cx + 70, bot - 30, 6, -1, 1); g.stroke();
+  } else {
+    g.fillStyle = "#3f7f3a"; for (const [tx, s2] of [[.72, 1], [.82, .8]]){ g.fillRect(x + w*tx - 3*s2, y + h*.72 - 10*s2, 6*s2, 26*s2); circ(g, x + w*tx, y + h*.66 - 10*s2, 22*s2, "#4f9a45"); }
+  }
+  /* temperature bubble */
+  g.font = '700 34px "Barlow Condensed","Arial Narrow",sans-serif'; const tw = g.measureText(tTxt).width;
+  if (CSN.ink) panel(g, x + 16, y + h - 64, tw + 28, 46, 23, "#ffffff"); else { g.fillStyle = "rgba(255,255,255,.9)"; roundRect(g, x + 16, y + h - 64, tw + 28, 46, 23); g.fill(); }
+  g.fillStyle = "#14241a"; g.fillText(tTxt, x + 30, y + h - 29);
+  g.restore();
+}
+
+let FD = '"Barlow Condensed","Arial Narrow",sans-serif', FB = '"Source Sans 3",system-ui,sans-serif';
+const STY = {
+  clean:  {fd:'"Barlow Condensed","Arial Narrow",sans-serif', fb:'"Source Sans 3",system-ui,sans-serif', ink:null, bg:"#fbfcf8"},
+  cartoon:{fd:'"Bowlby One","Arial Black",Impact,sans-serif', fb:'"Patrick Hand","Comic Sans MS","Segoe Print",cursive', ink:"#1d2b22", bg:"#f3f7ee"}
+};
+let CSN = STY.clean;
+/* a panel: flat in clean style; ink outline + offset shadow in cartoon style */
+function panel(g, x, y, w, h, r, fill, thin){
+  if (CSN.ink){ g.fillStyle = CSN.ink; roundRect(g, x + 4, y + 4, w, h, r); g.fill(); }
+  g.fillStyle = fill; roundRect(g, x, y, w, h, r); g.fill();
+  if (CSN.ink){ g.strokeStyle = CSN.ink; g.lineWidth = 2.5; g.stroke(); } else if (thin){ g.strokeStyle = thin; g.lineWidth = 1; g.stroke(); }
+}
+const SC = 2, CW = 540;
+const SCOL = {good:"#2e8a3e", ok:"#7f9b22", fair:"#cf8516", poor:"#c43b2e"};
+function drawCard(R, data, lang, title, style = "clean"){
+  CSN = STY[style] || STY.clean; FD = CSN.fd; FB = CSN.fb;
+  try { return drawCardInner(R, data, lang, title); } finally { CSN = STY.clean; FD = STY.clean.fd; FB = STY.clean.fb; }
+}
+function drawCardInner(R, data, lang, title){
+  const L = TX[lang], c = document.createElement("canvas"); c.width = CW*SC; c.height = 3200*SC;
+  const g = c.getContext("2d"); g.scale(SC, SC); g.textBaseline = "alphabetic";
+  if (CSN.ink){ /* poster face has a single weight: stop the browser faking bold */
+    const fd = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, "font");
+    Object.defineProperty(g, "font", {configurable:true, get(){ return fd.get.call(this); }, set(v){ fd.set.call(this, v.replace(/^\s*\d00\s+(?=[\d.]+px\s+"Bowlby)/, "400 ")); }}); }
+  const P = 18, IW = CW - 2*P; let y = 0;
+  g.fillStyle = CSN.bg; g.fillRect(0, 0, CW, 3200);
+  const dt = new Date(R.date + "T12:00:00Z"), dayTxt = `${L.days[dt.getUTCDay()]} ${dt.getUTCDate()} ${L.mon[dt.getUTCMonth()]}`;
+  /* header */
+  const w = data.w, mode = R.mode || "golf";
+  const sub = mode === "golf" ? `${dayTxt} · ${L.tee} ${R.tee}${w.start && w.start !== 1 ? ` (${lang === "af" ? "putjie" : "hole"} ${w.start})` : ""} · ${L.fin} ±${hhmm(w.b)}` : w.len >= 1440 ? `${dayTxt} · ${lang === "af" ? "hele dag, uur vir uur" : "full day, hour by hour"}` : `${dayTxt} · ${R.tee} – ${hhmm(w.b)}`;
+  if (CSN.ink){
+    g.fillStyle = "#4f6357"; g.font = `20px ${FB}`; g.fillText(title || L.title, P, 30);
+    g.font = `28px ${FD}`; let nm2 = R.loc.n.toUpperCase(); while (g.measureText(nm2).width > IW - 6 && nm2.length > 8) nm2 = nm2.slice(0, -2);
+    if (nm2 !== R.loc.n.toUpperCase()) nm2 = nm2.trimEnd() + "…";
+    g.fillStyle = "#ffc93c"; g.fillText(nm2, P + 3, 67); g.fillStyle = CSN.ink; g.fillText(nm2, P, 64);
+    g.font = `21px ${FB}`; g.fillStyle = CSN.ink; g.fillText(sub, P, 94);
+    y = 108;
+  } else {
+  g.fillStyle = "#2c6a3f"; g.fillRect(0, 0, CW, 104);
+  g.fillStyle = "#cfe6d4"; g.font = `700 13px ${FB}`; g.fillText((title || L.title).toUpperCase(), P, 26);
+  g.fillStyle = "#ffffff"; g.font = `700 32px ${FD}`;
+  let nm = R.loc.n.toUpperCase(); while (g.measureText(nm).width > IW && nm.length > 8) nm = nm.slice(0, -2);
+  if (nm !== R.loc.n.toUpperCase()) nm = nm.trimEnd() + "…";
+  g.fillText(nm, P, 62);
+  g.fillStyle = "#e4f1e7"; g.font = `600 16px ${FB}`;
+  g.fillText(sub, P, 89);
+  y = 104;
+  }
+  if (!data.st){ g.fillStyle = "#56685c"; g.font = `16px ${FB}`; y += 30; y += wrap(g, L.nofc, P, y, IW, 22); return crop(c, y + 20); }
+  const st = data.st, dom = st.hs.reduce((a,x) => (x.code ?? 0) > (a ?? 0) && x.min >= w.a - 30 ? x.code : a, null);
+  /* scene */
+  if (CSN.ink){ g.fillStyle = CSN.ink; g.fillRect(P + 4, y + 4, IW, 190);
+    drawScene(g, P, y, IW, 190, dom ?? data.D.code, `${fmt(st.tStart)}° → ${fmt(st.tEnd)}°`, mode);
+    g.strokeStyle = CSN.ink; g.lineWidth = 3; g.strokeRect(P, y, IW, 190); y += 194; }
+  else { drawScene(g, 0, y, CW, 190, dom ?? data.D.code, `${fmt(st.tStart)}° → ${fmt(st.tEnd)}°`, mode); y += 190; }
+  /* verdict */
+  y += 22; const sc = st.score, sk = scoreCls(sc), vi = sc >= 8 ? 3 : sc >= 6 ? 2 : sc >= 4 ? 1 : 0;
+  g.lineWidth = 5; g.strokeStyle = SCOL[sk]; g.beginPath(); g.arc(P + 38, y + 38, 34, 0, 7); g.stroke();
+  g.fillStyle = SCOL[sk]; g.font = `700 32px ${FD}`; const sTxt = sc.toFixed(1); g.fillText(sTxt, P + 38 - g.measureText(sTxt).width/2, y + 48);
+  const tx = P + 92, tw2 = CW - P - tx;
+  g.font = `700 24px ${FD}`; g.fillText(L.verd[vi].toUpperCase(), tx, y + 22); const vw = g.measureText(L.verd[vi].toUpperCase()).width;
+  g.fillStyle = "#56685c"; g.font = `600 13px ${FB}`; g.fillText(`${L.scores[mode]} ${sTxt}/10`, tx + vw + 12, y + 21);
+  let ty = y + 46; g.font = `15px ${FB}`;
+  for (const [k, t] of data.issues){ circ(g, tx + 5, ty - 5, 4.5, SCOL[k]); g.fillStyle = "#14241a"; ty += wrap(g, t, tx + 16, ty, tw2 - 16, 20); ty += 2; }
+  y = Math.max(y + 84, ty) + 8;
+  if (data.lt && data.lt.length){
+    const lt = data.lt; let best = null;
+    for (const x of lt) if (x.near && (!best || x.near.d < best.near.d)) best = x;
+    const band = ltBand(best?.near?.d), col = LTB_COL[band], dark = band === "area";
+    g.fillStyle = "#56685c"; g.font = `700 12px ${FB}`; g.fillText(("⚡ " + L.lthM[mode]).toUpperCase(), P, y + 4); y += 12;
+    g.font = `700 15px ${FB}`; const bh = best ? String(best.h).padStart(2,"0") + ":00" : "";
+    const head = best && best.near.d < 1 ? "⚡ " + L.ltOver(bh) : best ? "⚡ " + L.ltHead(best.near.d, tcomp(best.near.dir, L), String(best.h).padStart(2,"0") + ":00", band) : "✓ " + L.ltNone;
+    const hh = wrap(g, head, 0, 0, IW - 24, 20, false);
+    panel(g, P, y, IW, hh + 16, 8, col); g.fillStyle = dark ? "#14241a" : "#fff"; wrap(g, head, P + 12, y + 22, IW - 24, 20); y += hh + 16 + 8;
+    if (best){
+      g.font = `13px ${FB}`;
+      const ltRows = lt.length > 8 ? lt.filter(x => x.course >= 1 || x.near) : lt;
+      for (const x of ltRows){
+        const t = String(x.h).padStart(2,"0") + ":00"; g.fillStyle = "#14241a"; g.font = `700 13px ${FD}`; g.fillText(t, P, y + 13);
+        const ac = x.course >= 1 ? L.lrt[x.course] : L.lrt[0]; g.font = `13px ${FB}`;
+        circ(g, P + 52, y + 8.5, 5, x.course ? LR_COL[x.course] : "#2e8a3e"); g.fillStyle = "#14241a"; g.fillText(`${L.ltAt}: ${ac}`, P + 62, y + 13);
+        const nt = x.near && x.near.d < 1 ? `${L.ltNear}: ${L.ltHere} (${L.lrt[x.near.r]})` : x.near ? `${L.ltNear}: ${Math.round(x.near.d)} km ${tcomp(x.near.dir, L)} (${L.lrt[x.near.r]})` : `${L.ltNear}: ${L.ltNoneH}`;
+        const nb = ltBand(x.near?.d); circ(g, P + 222, y + 8.5, 5, LTB_COL[nb]); g.fillStyle = "#14241a"; g.fillText(nt, P + 232, y + 13); y += 20;
+      }
+      g.fillStyle = "#56685c"; g.font = `11px ${FB}`; y += wrap(g, L.ltNote, P, y + 10, IW, 15) + 4;
+    }
+    y += 6;
+  } else if (st.lr){ g.fillStyle = LR_COL[st.lr]; roundRect(g, P, y, IW, 30, 8); g.fill(); g.fillStyle = st.lr === 1 ? "#14241a" : "#fff"; g.font = `700 15px ${FB}`;
+    g.fillText(`⚡ ${L.lt}: ${L.lrt[st.lr]}`, P + 12, y + 20); y += 40; }
+  /* stats */
+  const cols = [[L.temp, `${fmt(st.tStart)}°→${fmt(st.tEnd)}°`], [L.feels, `${fmt(st.atmin)}°–${fmt(st.atmax)}°`],
+                [L.rain, `${st.rain.toFixed(1)}mm${st.ppmax != null ? " " + Math.round(st.ppmax) + "%" : ""}`], [L.wind, `${fmt(st.wavg)}/${fmt(st.gmax)} km/h`]];
+  const cw4 = IW / 4;
+  panel(g, P, y, IW, 62, 10, CSN.ink ? "#ffffff" : "#eef2ea");
+  cols.forEach(([k, v], i) => { const cx = P + i*cw4 + 10; g.fillStyle = "#56685c"; g.font = `700 11px ${FB}`; g.fillText(k.toUpperCase(), cx, y + 22);
+    g.fillStyle = "#14241a"; g.font = `600 17px ${FB}`; g.fillText(v, cx, y + 47); });
+  g.font = `700 11px ${FB}`; const wx = P + 3*cw4 + 10 + g.measureText(L.wind.toUpperCase()).width + 8;
+  g.fillStyle = "#56685c"; g.font = `11px ${FB}`; const wl = `${L.from} ${tcomp(st.wd, L)}`; g.fillText(wl, wx, y + 22);
+  windArrow(g, wx + g.measureText(wl).width + 10, y + 18, st.wd, 6, "#2c6a3f");
+  y += 62 + 20;
+  /* hour strip */
+  g.fillStyle = "#56685c"; g.font = `700 12px ${FB}`; g.fillText(L.hbh.toUpperCase(), P, y); y += 10;
+  const hs = st.hs.length <= 7 ? st.hs : [0,1,2,3,4,5,6].map(i => st.hs[Math.round(i*(st.hs.length-1)/6)]), cwH = IW / hs.length;
+  panel(g, P, y, IW, 150, 10, "#fff4c7", "#e2c96a");
+  hs.forEach((x, i) => {
+    const cx = P + i*cwH + cwH/2, center = (t, yy, f, col) => { g.font = f; g.fillStyle = col; g.fillText(t, cx - g.measureText(t).width/2, yy); };
+    center(x.time.slice(11,16), y + 22, `700 15px ${FD}`, "#14241a");
+    cIcon(g, x.code, cx, y + 46, 38, x.day1 !== 0);
+    if (x.lr){ g.fillStyle = LR_COL[x.lr]; roundRect(g, cx + 8, y + 28, 22, 18, 5); g.fill(); g.fillStyle = "#fff"; g.font = `700 12px ${FB}`; g.fillText("⚡", cx + 13, y + 41); }
+    center(`${fmt(x.t)}°`, y + 86, `700 18px ${FB}`, "#14241a");
+    center(`${x.pp != null ? fmt(x.pp) + "%" : ""} ${x.pr ? fmt(x.pr,1) + "mm" : ""}`.trim() || "0mm", y + 104, `600 12px ${FB}`, "#2f6fb5");
+    windArrow(g, cx - 22, y + 118, x.wd, 6, "#2c6a3f");
+    center(`${fmt(x.w)}/${fmt(x.g)}`, y + 123, `600 12px ${FB}`, (x.g ?? 0) > 35 ? "#c43b2e" : "#14241a");
+    const ho = mode === "golf" ? holesFor(x.min, x.min + 60, w) : ""; if (ho) center(`${L.holes.slice(0,1)}${L.holes === "Holes" ? "" : ""} ${ho}`.replace(/^\S /, (L.holes === "Holes" ? "H" : "P") + " "), y + 142, `700 13px ${FD}`, "#c8372d");
+  });
+  y += 150 + 22;
+  /* hole by hole (golf) */
+  if (data.holes && data.holes.length){
+    const rows = data.holes, nines = rows.length === 18 ? [rows.slice(0,9), rows.slice(9)] : [rows], tw9 = IW / 9;
+    g.fillStyle = "#56685c"; g.font = `700 12px ${FB}`; g.fillText((lang === "af" ? "Putjie vir putjie" : "Hole by hole").toUpperCase(), P, y); y += 8;
+    for (const nn of nines){
+      g.fillStyle = "#c8372d"; g.font = `700 15px ${FD}`; g.fillText(nineName(nn, lang).toUpperCase(), P, y + 16); y += 22;
+      panel(g, P, y, IW, 86, 8, CSN.ink ? "#ffffff" : "#f6f8f3", "#cfd8cc");
+      nn.forEach((r, i) => {
+        const x0 = P + i*tw9, cx = x0 + tw9/2;
+        if (r.hour % 2){ g.fillStyle = "rgba(44,106,63,.10)"; g.fillRect(x0 + 1.5, y + 1.5, tw9 - 3, 83); }
+        if (i){ g.strokeStyle = "rgba(29,43,34,.15)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y + 6); g.lineTo(x0, y + 80); g.stroke(); }
+        const ctr = (t, yy, f, col) => { g.font = f; g.fillStyle = col; g.fillText(t, cx - g.measureText(t).width/2, yy); };
+        ctr(String(r.no), y + 20, `700 19px ${FD}`, CSN.ink || "#14241a");
+        ctr(hhmm(r.t0), y + 33, `11px ${FB}`, "#56685c");
+        ctr(`${fmt(r.t)}°`, y + 50, `700 15px ${FB}`, "#14241a");
+        windArrow(g, cx - 15, y + 61, r.wd, 4.5, "#2c6a3f"); ctr(`${fmt(r.w)}`, y + 65, `600 12px ${FB}`, (r.g ?? 0) > 35 ? "#c43b2e" : "#14241a");
+        if (r.lr >= 2){ g.fillStyle = LR_COL[r.lr]; roundRect(g, cx - 13, y + 69, 26, 14, 4); g.fill(); ctr("⚡", y + 80, `700 10px ${FB}`, "#fff"); }
+        else ctr(r.pr >= 0.1 ? fmt(r.pr,1) + "mm" : (r.pp != null ? fmt(r.pp) + "%" : ""), y + 80, `600 11px ${FB}`, "#2f6fb5");
+      });
+      y += 86 + 10;
+    }
+    g.fillStyle = "#56685c"; g.font = `11px ${FB}`;
+    y += wrap(g, lang === "af" ? "Beraamde afslaantyd per putjie, temperatuur, wind (km/h), reën. Skakering groepeer putjies in dieselfde uur." : "Estimated time on each tee, temperature, wind (km/h), rain. Shading groups holes played in the same hour.", P, y + 6, IW, 15) + 12;
+  }
+  /* pack tips */
+  const tips = packTips(st, lang);
+  if (tips.length){ g.fillStyle = "#14241a"; g.font = `700 15px ${FB}`; const lab = L.pack + ": "; g.fillText(lab, P, y);
+    g.font = `15px ${FB}`; y += wrap(g, tips.join("  ·  "), P + g.measureText(lab).width + 4, y, IW - 70, 21); y += 10; }
+  /* rain maps */
+  if (data.frames && data.frames.length){
+    y += 8; g.fillStyle = "#56685c"; g.font = `700 12px ${FB}`; g.fillText(L.maps.toUpperCase(), P, y); y += 10;
+    const per = 3, gap = 8, mw = (IW - gap*(per-1)) / per, fr = data.frames;
+    const mh = mw * fr[0].canvas.height / fr[0].canvas.width;
+    fr.forEach((f, i) => { const r = Math.floor(i/per), q = i % per; g.drawImage(f.canvas, P + q*(mw+gap), y + r*(mh+gap), mw, mh); });
+    y += Math.ceil(fr.length/per) * (mh + gap) + 4;
+    /* legend */
+    const lx = P; let x = lx; g.font = `12px ${FB}`;
+    [[0.3,"0.3"],[1,"1"],[2.5,"2.5"],[6,"6"],[12,"12+ mm/h"]].forEach(([v,t]) => { const col = rainRGBA(v); g.fillStyle = `rgba(${col[0]|0},${col[1]|0},${col[2]|0},${col[3]})`;
+      g.fillRect(x, y + 4, 22, 12); g.fillStyle = "#56685c"; g.fillText(t, x + 26, y + 15); x += 26 + g.measureText(t).width + 12; });
+    g.fillStyle = "rgba(95,105,115,.38)"; g.fillRect(x, y + 4, 22, 12); g.fillStyle = "#56685c"; g.fillText(lang === "af" ? "wolke" : "cloud", x + 26, y + 15);
+    y += 24; g.font = `12px ${FB}`; y += wrap(g, L.mapnote, P, y + 10, IW, 16);
+  }
+  /* footer */
+  y += 18; g.fillStyle = "#93a598"; g.font = `11px ${FB}`;
+  const mdl = $("#model").selectedOptions[0]?.textContent || "";
+  const now = new Date();
+  g.fillText(`Weather or Not · ${L.src} (${mdl}) · ${now.getDate()} ${L.mon[now.getMonth()]} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`, P, y);
+  return crop(c, y + 16);
+}
+function crop(c, h){ const o = document.createElement("canvas"); o.width = c.width; o.height = Math.ceil(h*SC); o.getContext("2d").drawImage(c, 0, 0); return o; }
+function stackCards(cards, title, lang, style){
+  const gap = 16*SC, head = 64*SC, W = CW*SC + 2*gap;
+  const H = head + cards.reduce((a,c) => a + c.height + gap, 0) + gap;
+  const o = document.createElement("canvas"); o.width = W; o.height = H; const g = o.getContext("2d");
+  g.fillStyle = "#eef2ea"; g.fillRect(0, 0, W, H);
+  if (style === "cartoon"){ g.font = `400 ${32*SC}px ${STY.cartoon.fd}`; const tt = (title || TX[lang].title).toUpperCase();
+    g.fillStyle = "#ffc93c"; g.fillText(tt, gap + 3*SC, 50*SC); g.fillStyle = "#1d2b22"; g.fillText(tt, gap, 47*SC); }
+  else { g.fillStyle = "#14241a"; g.font = `700 ${34*SC}px ${FD}`; g.fillText((title || TX[lang].title).toUpperCase(), gap, 48*SC); }
+  let y = head; for (const c of cards){ g.drawImage(c, gap, y); y += c.height + gap; }
+  return o;
+}
+async function buildCards(){
+  const rounds = (S.trip.length ? S.trip : [currentRound()]).filter(r => r.date);
+  const lang = $("#shLang").value, maps = $("#shMaps").checked;
+  const title = $("#shTitle").value.trim() || TX[lang].titles[rounds[0]?.mode || "golf"];
+  try{ await Promise.all([document.fonts.load(`400 30px "Bowlby One"`), document.fonts.load(`400 20px "Patrick Hand"`), document.fonts.load(`700 32px "Barlow Condensed"`), document.fonts.load(`600 16px "Source Sans 3"`), document.fonts.load(`16px "Source Sans 3"`)]); }catch(e){}
+  const out = [];
+  for (let i = 0; i < rounds.length; i++){
+    const R = rounds[i]; status(`Building card ${i+1} of ${rounds.length}: ${R.loc.n}…`);
+    const mode = R.mode || "golf", fc = await fcFor(R.loc), P = parseFC(fc, mode), D = P.D.find(d => d.date === R.date);
+    const w = {a: toMin(R.tee), b: toMin(R.tee) + R.len*60, len: R.len*60, start: R.startHole || 1};
+    let data = {w, D, st:null, holes: mode === "golf" && D ? holeRows(w, R.date, P.H, null) : null};
+    if (D){ data.st = roundStats(D, w, P.H); if (data.st) data.issues = issuesFor(data.st, D, w, lang, mode);
+      if (data.st){
+        try{ const gr = await rainGrid(R.loc, R.date); data.lt = lightningNear(gr, w);
+          for (const x of data.lt){ const hr = P.H.find(h => h.day === R.date && h.min === x.h*60);
+            if (hr && hr.lr > x.course) x.course = hr.lr;
+            if (x.course >= 2 && (!x.near || x.near.d > 0)) x.near = {d:0, r:x.course, dir:null}; }
+          if (maps) data.frames = await rainFrames(R.loc, w, R.date, gr, data.lt); }
+        catch(e){ data.frames = null; data.lt = null; status("Lightning distances and rain maps could not be loaded (" + (e.message || e) + "); card built without them.", true); } } }
+    const p = dParts(R.date);
+    out.push({name:`golf-wx-${i+1}-${R.loc.n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}-${R.date}.png`, canvas: drawCard(R, data, lang, title, $("#shStyle").value)});
+  }
+  if ($("#shMode").value === "tall" && out.length > 1){
+    const t = title || TX[lang].title;
+    return [{name:`golf-wx-${t.toLowerCase().replace(/[^a-z0-9]+/g,"-")}-${rounds[0].date}.png`, canvas: stackCards(out.map(o => o.canvas), title, lang, $("#shStyle").value)}];
+  }
+  return out;
+}
+async function previewCards(){
+  const btns = [$("#shPreview"), $("#shGo")]; btns.forEach(b => b.disabled = true);
+  try{ const cards = await buildCards(); S.cards = cards;
+    $("#shOut").innerHTML = ""; for (const c of cards){ const im = new Image(); im.src = c.canvas.toDataURL("image/png"); im.alt = c.name; $("#shOut").appendChild(im); }
+    if (!$("#status").classList.contains("err")) status(null);
+    return cards;
+  }catch(e){ status("Share card failed: " + (e.message || e), true); return null; }
+  finally{ btns.forEach(b => b.disabled = false); }
+}
+async function shareCards(){
+  const cards = await previewCards(); if (!cards || !cards.length) return;
+  const files = await Promise.all(cards.map(c => new Promise(res => c.canvas.toBlob(b => res(new File([b], c.name, {type:"image/png"})), "image/png"))));
+  const title = $("#shTitle").value.trim() || TX[$("#shLang").value].title;
+  if (navigator.canShare && navigator.canShare({files})){
+    try{ await navigator.share({files, title}); return; }catch(e){ if (e.name === "AbortError") return; }
+  }
+  for (const f of files){ const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+  status(`Saved ${files.length} image${files.length > 1 ? "s" : ""} to your Downloads folder.`);
+}
+$("#shTitle").value = LS.get("shTitle", ""); $("#shLang").value = LS.get("shLang", "en"); $("#shMaps").checked = LS.get("shMaps", true); $("#shMode").value = LS.get("shMode", "each"); $("#shStyle").value = LS.get("shStyle", "cartoon");
+$("#shStyle").addEventListener("change", e => LS.set("shStyle", e.target.value));
+$("#shTitle").placeholder = TX[$("#shLang").value].title;
+$("#shTitle").addEventListener("change", e => LS.set("shTitle", e.target.value));
+$("#shLang").addEventListener("change", e => { LS.set("shLang", e.target.value); $("#shTitle").placeholder = TX[e.target.value].title; });
+$("#shMaps").addEventListener("change", e => LS.set("shMaps", e.target.checked));
+$("#shMode").addEventListener("change", e => LS.set("shMode", e.target.value));
+$("#shPreview").addEventListener("click", previewCards);
+$("#shGo").addEventListener("click", shareCards);
+$("#shClear").addEventListener("click", () => { S.trip = []; LS.set("trip", S.trip); renderTrip(); });
+$("#tripList").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (!b) return; S.trip.splice(+b.dataset.rm, 1); LS.set("trip", S.trip); renderTrip(); });
+renderTrip();
+
+/* ---------- actions ---------- */
+function setLoc(l){ S.loc = l; LS.set("loc", l); S.sel = 0; renderFavs(); updateWindy(); $("#locName").textContent = l.n; placeLocMarker(); load(false); }
+function saveSettings(){ if (S.mode === "golf"){ LS.set("tee", S.tee); LS.set("len", S.len); } else LS.set("tee_" + S.mode, S.tee); LS.set("model", S.model); syncLen(); }
+
+$("#q").addEventListener("input", onSearchInput);
+$("#q").addEventListener("focus", () => { if ($("#q").value.trim()) onSearchInput(); });
+$("#q").addEventListener("keydown", e => {
+  const btns = [...document.querySelectorAll("#results .res[data-i]")];
+  if (e.key === "ArrowDown" || e.key === "ArrowUp"){ e.preventDefault(); if (!btns.length) return;
+    resIdx = (resIdx + (e.key === "ArrowDown" ? 1 : -1) + btns.length) % btns.length;
+    btns.forEach((b,i) => b.classList.toggle("on", i === resIdx)); btns[resIdx].scrollIntoView({block:"nearest"}); }
+  else if (e.key === "Enter"){ e.preventDefault(); const b = btns[resIdx >= 0 ? resIdx : 0]; if (b) pick(resItems[+b.dataset.i]); else { clearTimeout(geoTimer); geoSeq++; geocode($("#q").value.trim(), geoSeq); } }
+  else if (e.key === "Escape"){ $("#results").hidden = true; }
+});
+$("#results").addEventListener("click", e => { const b = e.target.closest(".res[data-i]"); if (b) pick(resItems[+b.dataset.i]); });
+document.addEventListener("click", e => { if (!e.target.closest(".searchbox")) $("#results").hidden = true; });
+$("#saOnly").addEventListener("change", () => { if ($("#q").value.trim().length >= 3) onSearchInput(); });
+$("#mapBtn").addEventListener("click", toggleMap);
+$("#favs").addEventListener("click", e => { const b = e.target.closest("[data-f]"); if (b) setLoc({...S.favs[+b.dataset.f]}); });
+$("#star").addEventListener("click", () => {
+  const k = favKey(S.loc), i = S.favs.findIndex(f => favKey(f) === k);
+  if (i >= 0) S.favs.splice(i, 1); else S.favs.push({n:S.loc.n, r:S.loc.r, lat:S.loc.lat, lon:S.loc.lon, kind:S.loc.kind});
+  LS.set("favs", S.favs); renderFavs();
+});
+$("#refresh").addEventListener("click", () => load(true));
+$("#reloadCourses").addEventListener("click", () => loadOSM(true));
+S.mode = LS.get("mode", "golf");
+function syncLen(){ if (S.mode === "golf") S.len = +$("#len").value; else if (S.fullDay){ S.tee = "00:00"; S.len = 24; } else { let a = toMin($("#tee").value || "10:00"), b = toMin($("#end").value || "17:00"); if (b <= a) b = a + 60; S.len = (b - a)/60; } }
+function applyMode(){
+  const golf = S.mode === "golf";
+  $("#mode").value = S.mode; $("#teeLbl").textContent = MODE_TXT[S.mode].start;
+  $("#lenWrap").hidden = !golf; $("#endWrap").hidden = golf; $("#startWrap").hidden = !golf; $("#fullDay").hidden = golf;
+  S.fullDay = !golf && LS.get("full_" + S.mode, false); $("#fullDay").setAttribute("aria-pressed", String(!!S.fullDay));
+  if (golf){ S.tee = LS.get("tee", "07:30"); S.len = LS.get("len", 4.5); $("#len").value = String(S.len); }
+  else { const d = S.mode === "cricket" ? ["10:00","17:30"] : ["09:00","15:00"]; S.tee = LS.get("tee_" + S.mode, d[0]); $("#end").value = LS.get("end_" + S.mode, d[1]); }
+  $("#tee").value = S.tee; $("#tee").disabled = $("#end").disabled = !!S.fullDay;
+  if (S.fullDay){ S.all = true; $("#allHours").checked = true; }
+  syncLen();
+}
+S.startHole = LS.get("startHole", 1); $("#startHole").value = String(S.startHole);
+applyMode();
+$("#model").value = S.model;
+$("#startHole").addEventListener("change", e => { S.startHole = +e.target.value; LS.set("startHole", S.startHole); if (S.fc){ renderRound(); renderTable(); } });
+$("#mode").addEventListener("change", e => { S.mode = e.target.value; LS.set("mode", S.mode); applyMode(); if (S.fc){ build(); renderAll(); } });
+$("#fullDay").addEventListener("click", () => {
+  const on = !S.fullDay; LS.set("full_" + S.mode, on);
+  if (!on){ S.all = false; $("#allHours").checked = false; }
+  applyMode(); if (S.fc){ renderHead(); renderRound(); renderChart(); renderTable(); }
+});
+$("#end").addEventListener("change", e => { if (!e.target.value) return; LS.set("end_" + S.mode, e.target.value); syncLen(); if (S.fc){ renderHead(); renderRound(); renderChart(); renderTable(); } });
+$("#tee").addEventListener("change", e => { if (!e.target.value) return; S.tee = e.target.value; saveSettings(); if (S.fc) { renderHead(); renderRound(); renderChart(); renderTable(); } });
+$("#len").addEventListener("change", e => { S.len = +e.target.value; saveSettings(); if (S.fc) { renderHead(); renderRound(); renderChart(); renderTable(); } });
+$("#model").addEventListener("change", e => { S.model = e.target.value; saveSettings(); load(false); });
+$("#days").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (!b) return; S.sel = +b.dataset.d; renderAll(); });
+$("#round").addEventListener("click", async e => {
+  if (e.target.id === "useBest" && S.lastSummary?.bt){ S.tee = hhmm(S.lastSummary.bt.a); $("#tee").value = S.tee; if (S.mode !== "golf"){ $("#end").value = hhmm(S.lastSummary.bt.a + S.len*60); LS.set("end_" + S.mode, $("#end").value); } saveSettings(); renderHead(); renderRound(); renderChart(); renderTable(); }
+  if (e.target.id === "addTrip"){
+    const r = currentRound(); if (!r.date) return;
+    S.trip = S.trip.filter(t => !(t.date === r.date && t.tee === r.tee && favKey(t.loc) === favKey(r.loc)));
+    S.trip.push(r); S.trip.sort((a,b) => (a.date + a.tee).localeCompare(b.date + b.tee)); LS.set("trip", S.trip); renderTrip();
+    const lbl = e.target.textContent; e.target.textContent = "Added ✓"; setTimeout(() => e.target.textContent = lbl, 1500);
+  }
+  if (e.target.id === "copyBtn"){
+    const t = summaryText(), btn = e.target;
+    try{ await navigator.clipboard.writeText(t); btn.textContent = "Copied"; }
+    catch(err){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); btn.textContent = "Copied"; }catch(e2){ btn.textContent = "Copy failed"; } ta.remove(); }
+    setTimeout(() => btn.textContent = `Copy ${MODE_TXT[S.mode].item} summary`, 1800);
+  }
+});
+document.querySelectorAll("#vtabs .tab").forEach(t => t.addEventListener("click", () => {
+  S.view = t.dataset.view; document.querySelectorAll("#vtabs .tab").forEach(x => x.classList.toggle("on", x === t)); renderChart(); renderTable();
+}));
+document.querySelectorAll("#wtabs .tab").forEach(t => t.addEventListener("click", () => {
+  S.ov = t.dataset.ov; document.querySelectorAll("#wtabs .tab").forEach(x => x.classList.toggle("on", x === t)); updateWindy(true);
+}));
+$("#allHours").addEventListener("change", e => { S.all = e.target.checked; renderChart(); renderTable(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (S.fc) renderChart(); });
+
+/* ---------- start ---------- */
+S.courses = BUILTIN.slice().sort((a,b) => a.n.localeCompare(b.n));
+loadOSM(false).then(fillRegions);
+renderFavs();
+updateWindy();
+load(false);
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
